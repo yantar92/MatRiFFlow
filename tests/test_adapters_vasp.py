@@ -329,3 +329,184 @@ def test_prepare_inputs_potcar_missing_regenerates(monkeypatch, tmp_path: Path) 
     adapter = _adapter()
     adapter.prepare_inputs(tmp_path, keep=set())
     assert regenerated == [str(tmp_path)]
+
+
+# --- _rotate_incar_chain: converged with no chain ---------------------------
+
+
+def test_rotate_incar_chain_converged_no_chains_noop(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Converged but with no INCAR.N files means nothing to rotate."""
+    (tmp_path / "INCAR").write_text("old")
+    monkeypatch.setattr(vasp_mod, "directory_converged_p", lambda path: True)
+    _rotate_incar_chain(tmp_path)
+    assert (tmp_path / "INCAR").read_text() == "old"
+    assert not (tmp_path / "INCAR.old").exists()
+
+
+# --- _modify_incar: no change ----------------------------------------------
+
+
+def test_modify_incar_unchanged(tmp_path: Path, capsys) -> None:
+    """Setting a tag to its existing value leaves INCAR unchanged."""
+    (tmp_path / "INCAR").write_text("ENCUT = 400\n")
+    _modify_incar(tmp_path, {"ENCUT": "400"})
+    assert "Leaving INCAR unchanged" in capsys.readouterr().out
+
+
+# --- _regenerate_potcar -----------------------------------------------------
+
+
+def test_regenerate_potcar_keep_existing_false(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """_regenerate_potcar passes keep_existing=False explicitly.
+
+    The mock's own default is a sentinel, so the test fails if
+    _regenerate_potcar ever starts relying on generate_potcar's
+    ``keep_existing`` default instead of passing False.
+    """
+    sentinel = object()
+    calls = []
+    monkeypatch.setattr(
+        vasp_mod,
+        "generate_potcar",
+        lambda path, keep_existing=sentinel: calls.append(
+            (path, keep_existing)
+        ),
+    )
+    vasp_mod._regenerate_potcar(str(tmp_path))
+    assert calls == [(str(tmp_path), False)]
+
+
+# --- prepare_inputs: keep=None, force, incar_mods, NEB ---------------------
+
+
+def test_prepare_inputs_keep_none(monkeypatch, tmp_path: Path) -> None:
+    """keep=None is normalised to an empty set before _prepare_single."""
+    (tmp_path / "INCAR").touch()
+    monkeypatch.setattr(vasp_mod, "mdp", lambda path: False)
+    monkeypatch.setattr(vasp_mod, "directory_converged_p", lambda path: False)
+    prepared = []
+    monkeypatch.setattr(
+        vasp_mod.VaspAdapter,
+        "_prepare_single",
+        lambda self, path, keep: prepared.append(keep),
+    )
+
+    _adapter().prepare_inputs(tmp_path, keep=None)
+    assert prepared == [set()]
+
+
+def test_prepare_inputs_force_skips_incar_chain(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """force=True skips INCAR chain rotation."""
+    (tmp_path / "INCAR").touch()
+    rotated = []
+    monkeypatch.setattr(vasp_mod, "mdp", lambda path: False)
+    monkeypatch.setattr(
+        vasp_mod, "_rotate_incar_chain", lambda path: rotated.append(path)
+    )
+    monkeypatch.setattr(
+        vasp_mod.VaspAdapter, "_prepare_single", lambda self, path, keep: None
+    )
+
+    _adapter().prepare_inputs(tmp_path, force=True)
+    assert rotated == []
+
+
+def test_prepare_inputs_applies_incar_mods_before_prepare(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """incar_mods run through _modify_incar before _prepare_single."""
+    (tmp_path / "INCAR").touch()
+    mods = {"ALGO": "Fast"}
+    calls = []
+    monkeypatch.setattr(vasp_mod, "mdp", lambda path: False)
+    monkeypatch.setattr(vasp_mod, "directory_converged_p", lambda path: False)
+    monkeypatch.setattr(
+        vasp_mod,
+        "_modify_incar",
+        lambda path, m: calls.append(("modify", path, m)),
+    )
+    monkeypatch.setattr(
+        vasp_mod.VaspAdapter,
+        "_prepare_single",
+        lambda self, path, keep: calls.append(("prepare", path)),
+    )
+
+    _adapter(incar_mods=mods).prepare_inputs(tmp_path)
+    assert calls == [
+        ("modify", tmp_path, mods),
+        ("prepare", tmp_path),
+    ]
+
+
+@pytest.mark.parametrize(
+    "no_clean, expected_cleared",
+    [(False, ["0", "1"]), (True, [])],
+    ids=["clean", "no_clean"],
+)
+def test_prepare_inputs_neb_subdirs(
+    monkeypatch, tmp_path: Path, no_clean: bool, expected_cleared: list[str]
+) -> None:
+    """NEB runs prepare numbered subdirs; --no-clean skips their logs."""
+    (tmp_path / "INCAR").touch()
+    (tmp_path / "0").mkdir()
+    (tmp_path / "1").mkdir()
+    prepared = []
+    cleared = []
+    monkeypatch.setattr(vasp_mod, "mdp", lambda path: False)
+    monkeypatch.setattr(vasp_mod, "directory_converged_p", lambda path: False)
+    monkeypatch.setattr(vasp_mod, "nebp", lambda path: True)
+    monkeypatch.setattr(
+        vasp_mod.VaspAdapter,
+        "_prepare_single",
+        lambda self, path, keep: prepared.append(path),
+    )
+    monkeypatch.setattr(
+        vasp_mod,
+        "clear_slurm_logs",
+        lambda path, extra_logs=None: cleared.append(path),
+    )
+
+    _adapter(no_clean=no_clean).prepare_inputs(tmp_path)
+    assert prepared == [tmp_path, tmp_path / "0", tmp_path / "1"]
+    assert cleared == [str(tmp_path / sub) for sub in expected_cleared]
+
+
+# --- _prepare_single: POSCAR keep branches ----------------------------------
+
+
+@pytest.mark.parametrize("poscar_exists", [True, False], ids=["exists", "missing"])
+def test_prepare_single_keep_poscar(
+    monkeypatch, tmp_path: Path, capsys, poscar_exists: bool
+) -> None:
+    """--keep POSCAR keeps an existing POSCAR or copies CONTCAR when absent."""
+    (tmp_path / "INCAR").touch()
+    if poscar_exists:
+        (tmp_path / "POSCAR").touch()
+    monkeypatch.setattr(vasp_mod, "check_incar", lambda path: None)
+    monkeypatch.setattr(vasp_mod, "clean_vasp_inputs", lambda path: None)
+    monkeypatch.setattr(
+        vasp_mod,
+        "maybe_regenerate",
+        lambda path, filename, keep, regenerate: None,
+    )
+    monkeypatch.setattr(vasp_mod, "put_vdw_kernel", lambda path: None)
+    monkeypatch.setattr(vasp_mod, "clear_vasp_outputs", lambda path: None)
+    contcar_calls = []
+    monkeypatch.setattr(
+        vasp_mod, "contcar_to_poscar", lambda path: contcar_calls.append(path)
+    )
+
+    _adapter()._prepare_single(tmp_path, keep={"POSCAR"})
+    out = capsys.readouterr().out
+    if poscar_exists:
+        assert "Keeping existing POSCAR" in out
+        assert contcar_calls == []
+    else:
+        assert "POSCAR does not exist" in out
+        assert contcar_calls == [str(tmp_path)]
