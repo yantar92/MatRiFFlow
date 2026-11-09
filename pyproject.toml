@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://www.oimalyi.org/"
+homepage = "https://yantar92.github.io/MatRiFFlow/"
 
 [project.optional-dependencies]
 dev = ["pyright"]
