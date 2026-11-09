@@ -15,9 +15,7 @@ package, which also pulls in `pymatgen` (and with it the `pmg` command
 used below):
 
 ```bash
-    git clone https://github.com/yantar92/MatRiFFlow
-    cd MatRiFFlow
-    pip install .
+    pip install matrifflow
 ```
 
 Check it worked:

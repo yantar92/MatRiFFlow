@@ -49,9 +49,7 @@ directory inspection.
 
 ## Installation
 
-    git clone https://github.com/yantar92/MatRiFFlow
-    cd MatRiFFlow
-    pip install .
+    pip install matrifflow
 
 This installs the `mrf` and `gorun` commands.
 
@@ -60,7 +58,7 @@ native LMDB library. On some systems &ndash; especially HPC clusters &ndash; you
 must provide it before `pip install .`, for example `module load lmdb`
 or the system dev package (`apt install liblmdb-dev`,
 `dnf install lmdb-devel`). If the build fails while compiling `lmdb`,
-load the module and re-run `pip install .`.
+load the module and re-run `pip install matrifflow`.
 
 
 ## Next steps

@@ -100,9 +100,7 @@ directory inspection.
 ** Installation
 
 #+begin_src bash
-git clone https://github.com/yantar92/MatRiFFlow
-cd MatRiFFlow
-pip install .
+pip install matrifflow
 #+end_src
 
 This installs the ~mrf~ and ~gorun~ commands.
