@@ -46,7 +46,7 @@ import lmdb
 import numpy as np
 from monty.json import MSONable
 from alive_progress import alive_it
-from pymatgen.core import Structure
+from pymatgen.core.structure import Structure
 from pymatgen.io.vasp.inputs import Poscar as pmgPoscar
 from pymatgen.io.vasp.inputs import Kpoints as pmgKpoints
 from pymatgen.io.vasp.inputs import Potcar as pmgPotcar
