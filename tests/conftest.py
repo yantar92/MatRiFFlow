@@ -112,6 +112,27 @@ def converged_relax_vasp_dir(tmp_path: Path) -> Path:
     return _materialize_fixture(tmp_path, "vasp_converged_relax")
 
 
+_VASP_CORE_INPUT_FILES = ("INCAR", "POSCAR", "KPOINTS")
+
+
+@pytest.fixture
+def vasp_input_dir(tmp_path: Path, monkeypatch) -> Path:
+    """A minimal VASP input directory that the real helpers accept.
+
+    Copies the committed ``INCAR``/``POSCAR``/``KPOINTS`` fixtures and
+    points ``VASP_PATH`` at an empty directory, so preparation steps such
+    as ``check_incar``, ``clean_vasp_inputs`` and ``put_vdw_kernel`` run
+    without a pseudopotential library or a real VASP install.
+    """
+    fixtures = Path(__file__).parent / "fixtures"
+    for name in _VASP_CORE_INPUT_FILES:
+        shutil.copy(fixtures / name, tmp_path / name)
+    fakevasp = tmp_path / "fakevasp"
+    fakevasp.mkdir()
+    monkeypatch.setenv("VASP_PATH", str(fakevasp))
+    return tmp_path
+
+
 # ---------------------------------------------------------------------------
 # gorun (job-submission) fixtures
 # ---------------------------------------------------------------------------

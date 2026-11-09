@@ -292,43 +292,31 @@ def test_generate_run_commands_direct_without_incar_py(monkeypatch, tmp_path: Pa
 # --- prepare_inputs ---------------------------------------------------------
 
 
-def test_prepare_inputs_potcar_keep_skip(monkeypatch, tmp_path: Path) -> None:
+def test_prepare_inputs_potcar_keep_skip(
+    monkeypatch, vasp_input_dir: Path
+) -> None:
     """--keep POTCAR does not regenerate an existing POTCAR."""
-    (tmp_path / "INCAR").touch()
-    (tmp_path / "POTCAR").touch()
-    monkeypatch.setattr(vasp_mod, "check_incar", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "contcar_to_poscar", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "clean_vasp_inputs", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "put_vdw_kernel", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "clear_vasp_outputs", lambda path: None)
-
+    (vasp_input_dir / "POTCAR").write_text("placeholder")
     regenerated = []
     monkeypatch.setattr(
         vasp_mod, "_regenerate_potcar", lambda path: regenerated.append(path)
     )
 
-    adapter = _adapter()
-    adapter.prepare_inputs(tmp_path, keep={"POTCAR"})
+    _adapter().prepare_inputs(vasp_input_dir, keep={"POTCAR"})
     assert regenerated == []
 
 
-def test_prepare_inputs_potcar_missing_regenerates(monkeypatch, tmp_path: Path) -> None:
+def test_prepare_inputs_potcar_missing_regenerates(
+    monkeypatch, vasp_input_dir: Path
+) -> None:
     """A missing POTCAR triggers regeneration via _regenerate_potcar."""
-    (tmp_path / "INCAR").touch()
-    monkeypatch.setattr(vasp_mod, "check_incar", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "contcar_to_poscar", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "clean_vasp_inputs", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "put_vdw_kernel", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "clear_vasp_outputs", lambda path: None)
-
     regenerated = []
     monkeypatch.setattr(
         vasp_mod, "_regenerate_potcar", lambda path: regenerated.append(path)
     )
 
-    adapter = _adapter()
-    adapter.prepare_inputs(tmp_path, keep=set())
-    assert regenerated == [str(tmp_path)]
+    _adapter().prepare_inputs(vasp_input_dir, keep=set())
+    assert regenerated == [str(vasp_input_dir)]
 
 
 # --- _rotate_incar_chain: converged with no chain ---------------------------
@@ -482,31 +470,25 @@ def test_prepare_inputs_neb_subdirs(
 
 @pytest.mark.parametrize("poscar_exists", [True, False], ids=["exists", "missing"])
 def test_prepare_single_keep_poscar(
-    monkeypatch, tmp_path: Path, capsys, poscar_exists: bool
+    monkeypatch, vasp_input_dir: Path, capsys, poscar_exists: bool
 ) -> None:
     """--keep POSCAR keeps an existing POSCAR or copies CONTCAR when absent."""
-    (tmp_path / "INCAR").touch()
-    if poscar_exists:
-        (tmp_path / "POSCAR").touch()
-    monkeypatch.setattr(vasp_mod, "check_incar", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "clean_vasp_inputs", lambda path: None)
+    if not poscar_exists:
+        (vasp_input_dir / "POSCAR").unlink()
+
     monkeypatch.setattr(
-        vasp_mod,
-        "maybe_regenerate",
-        lambda path, filename, keep, regenerate: None,
+        vasp_mod, "maybe_regenerate", lambda *args, **kwargs: None
     )
-    monkeypatch.setattr(vasp_mod, "put_vdw_kernel", lambda path: None)
-    monkeypatch.setattr(vasp_mod, "clear_vasp_outputs", lambda path: None)
     contcar_calls = []
     monkeypatch.setattr(
         vasp_mod, "contcar_to_poscar", lambda path: contcar_calls.append(path)
     )
 
-    _adapter()._prepare_single(tmp_path, keep={"POSCAR"})
+    _adapter()._prepare_single(vasp_input_dir, keep={"POSCAR"})
     out = capsys.readouterr().out
     if poscar_exists:
         assert "Keeping existing POSCAR" in out
         assert contcar_calls == []
     else:
         assert "POSCAR does not exist" in out
-        assert contcar_calls == [str(tmp_path)]
+        assert contcar_calls == [str(vasp_input_dir)]
