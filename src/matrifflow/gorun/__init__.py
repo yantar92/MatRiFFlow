@@ -32,5 +32,5 @@ Supports:
     - MACE fine-tuning: ``gorun mace`` (or ``gorun-mace``)
     - ATAT cluster expansion: ``gorun-maps``, ``gorun-atat-local``
 
-See https://www.oimalyi.org/
+See https://www.oimalyi.org/ and https://yantar92.github.io/MatRiFFlow/
 """
