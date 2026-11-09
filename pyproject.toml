@@ -8,6 +8,7 @@ version = "2.0.0"
 description = "Pymatgen add-ons and cluster job-submission tools for the Inverse Materials Design group (formerly IMDgroup-pymatgen)"
 authors = [ {name = "Ihor Radchenko", email = "yantar92@posteo.net"},
             {name = "Oleksandr I. Malyi", email = "oleksandrmalyi@gmail.com"} ]
+license = "MIT"
 readme = {file = "README.md", content-type = "text/markdown"}
 keywords = ["crystal", "materials", "science", "structure", "VASP", "pymatgen", "cluster", "MACE", "slurm", "ase"]
 classifiers = [
