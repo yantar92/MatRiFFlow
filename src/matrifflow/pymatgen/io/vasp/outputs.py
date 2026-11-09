@@ -692,14 +692,17 @@ class Outcar(VasplogMixin, pmgOutcar):
     """Modified version of pymatgen's Outcar that stores all fields."""
 
     def _raw_log_lines(self) -> list[str]:
-        """Return OUTCAR lines, limited to ``MAX_SIZE`` bytes.
+        """Return OUTCAR lines, reusing pymatgen's in-memory cache.
 
-        Reads the first ``MAX_SIZE`` bytes from the OUTCAR file,
-        mirroring :meth:`Vasplog._raw_log_lines`.  We read from disk
-        instead of reusing pymatgen's in-memory text cache because its
-        attribute name is not stable across pymatgen versions (``_text``
-        was replaced by ``_lines``).
+        :class:`pmgOutcar` slurps the whole OUTCAR into ``_lines``
+        during ``__init__``, so re-reading from disk is redundant when
+        that cache is present.  Falls back to reading the first
+        ``MAX_SIZE`` bytes from disk only for pymatgen versions without
+        an in-memory cache.
         """
+        lines = self._in_memory_lines()
+        if lines is not None:
+            return lines
         with zopen(self.filename, mode="rt", encoding="UTF-8") as f:
             return f.readlines(self.MAX_SIZE)
 
