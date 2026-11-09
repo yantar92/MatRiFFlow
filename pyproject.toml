@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "MatRiFFlow"
-version = "2.0.2"
-description = "Pymatgen add-ons and cluster job-submission tools for the Inverse Materials Design group (formerly IMDgroup-pymatgen)"
+version = "2.0.3"
+description = "Python and command line tools for iterative VASP workflow development. Compatible with existing workflow libraries."
 authors = [ {name = "Ihor Radchenko", email = "yantar92@posteo.net"},
             {name = "Oleksandr I. Malyi", email = "oleksandrmalyi@gmail.com"} ]
 license = "MIT"
