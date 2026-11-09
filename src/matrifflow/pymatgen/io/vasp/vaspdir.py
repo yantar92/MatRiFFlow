@@ -1009,15 +1009,16 @@ class MRFVaspDir(Mapping, MSONable):
         return self._memoized('final_energy', self._compute_final_energy)
 
     def _compute_final_energy(self) -> float:
-        def warn_unconverged():
+        if not self.converged:
             self._record(VaspWarningRecord(
                 name="unconverged_energy",
                 message="Reading final energy from unconverged run",
                 source=self.path,
             ))
+        if oszicar := self['OSZICAR']:
+            if oszicar.ionic_steps:
+                return oszicar.final_energy
         if run := self['vasprun.xml']:
-            if not self.converged:
-                warn_unconverged()
             return run.final_energy
         if outcar := self['OUTCAR']:
             final_energy = outcar.final_energy
@@ -1031,8 +1032,6 @@ class MRFVaspDir(Mapping, MSONable):
                     source=self.path,
                 ))
                 final_energy = np.nan
-            elif not self.converged:
-                warn_unconverged()
             return final_energy
         return np.nan
 
