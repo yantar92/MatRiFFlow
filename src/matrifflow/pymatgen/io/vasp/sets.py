@@ -68,7 +68,7 @@ POTCAR_RECOMMENDED = dict(
 POTCAR_RECOMMENDED['W'] = 'W_sv'
 
 # Group-standard default POTCAR functional (PBE_64 release).
-POTCAR_FUNCTIONAL_DEFAULT = 'PBE_64'
+POTCAR_FUNCTIONAL_DEFAULT: str = 'PBE_64'
 
 # Group-standard default for KPOINTS.grid_density.
 KPOINTS_GRID_DENSITY = 10000
@@ -88,7 +88,7 @@ __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 logger = logging.getLogger(__name__)
 
 
-def write_selective_dynamics_summary_maybe(structure, fname):
+def write_selective_dynamics_summary_maybe(structure: Structure, fname: str) -> bool:
     """Visualize site constraints and write a CIF file if non-trivial.
 
     The CIF uses species substitution for visual cues:
@@ -164,7 +164,7 @@ class MRFVaspInputSet(VaspInputSet):
     no_incar: bool = False
     # __structure: Structure | None = None
 
-    CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': POTCAR_FUNCTIONAL_DEFAULT}
+    CONFIG: dict[str, str | dict[str, str | int | float]] = {'INCAR': {}, 'POTCAR_FUNCTIONAL': POTCAR_FUNCTIONAL_DEFAULT}
 
     # @property
     # def structure(self):
@@ -469,7 +469,7 @@ class MRFVaspInputSet(VaspInputSet):
             bootstrap=False,
         )
 
-    def write_input(self, output_dir, *args, **kwargs) -> None:
+    def write_input(self, output_dir: str, *args, **kwargs) -> None:
         """Write VASP input files to a directory.
 
         In addition to standard pymatgen behaviour, writes an
