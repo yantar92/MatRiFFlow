@@ -164,7 +164,7 @@ class MRFVaspInputSet(VaspInputSet):
     no_incar: bool = False
     # __structure: Structure | None = None
 
-    CONFIG: dict[str, str | dict[str, str | int | float]] = {'INCAR': {}, 'POTCAR_FUNCTIONAL': POTCAR_FUNCTIONAL_DEFAULT}
+    CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': POTCAR_FUNCTIONAL_DEFAULT}
 
     # @property
     # def structure(self):
