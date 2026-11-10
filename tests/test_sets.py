@@ -37,6 +37,7 @@ from __future__ import annotations
 import gzip
 import warnings
 from types import SimpleNamespace
+from pathlib import Path
 
 import pytest
 from pymatgen.core import Lattice, Structure
@@ -362,7 +363,7 @@ def test_write_input_psp_dir_not_configured_falls_back_to_spec(
         calls.append(kwargs)
         if not kwargs.get("potcar_spec"):
             raise PmgVaspPspDirError("Set PMG_VASP_PSP_DIR=<directory-path> ...")
-        (output_dir / "POTCAR.spec").write_text("Cs_sv\nCl\n")
+        (Path(output_dir) / "POTCAR.spec").write_text("Cs_sv\nCl\n")
 
     monkeypatch.setattr(
         "pymatgen.io.vasp.sets.VaspInputSet.write_input", _fake_write)
