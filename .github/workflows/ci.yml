@@ -42,7 +42,7 @@ jobs:
       - name: Install project and dev dependencies
         # Editable install so pyright can resolve the src-layout imports
         # (matrifflow.*) without an explicit extraPaths setting.
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,mace]"
 
       - name: Run pyright
         # --warnings makes the check fail (and notify) on warnings too,
