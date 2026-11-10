@@ -88,7 +88,7 @@ __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 logger = logging.getLogger(__name__)
 
 
-def write_selective_dynamics_summary_maybe(structure: Structure, fname: str) -> bool:
+def write_selective_dynamics_summary_maybe(structure: Structure, fname: str | Path) -> bool:
     """Visualize site constraints and write a CIF file if non-trivial.
 
     The CIF uses species substitution for visual cues:
@@ -128,7 +128,7 @@ def write_selective_dynamics_summary_maybe(structure: Structure, fname: str) -> 
             "Writing selective dynamics visualization to %s",
             fname
         )
-        structure.to_file(fname)
+        structure.to_file(str(fname))
         return True
     return False
 
@@ -469,7 +469,7 @@ class MRFVaspInputSet(VaspInputSet):
             bootstrap=False,
         )
 
-    def write_input(self, output_dir: str, *args, **kwargs) -> None:
+    def write_input(self, output_dir: str | Path, *args, **kwargs) -> None:
         """Write VASP input files to a directory.
 
         In addition to standard pymatgen behaviour, writes an
@@ -494,7 +494,7 @@ class MRFVaspInputSet(VaspInputSet):
         configure it, so proceeding silently would hide a setup mistake.
         """
         try:
-            super().write_input(output_dir, *args, **kwargs)
+            super().write_input(str(output_dir), *args, **kwargs)
         except PmgVaspPspDirError:
             # PMG_VASP_PSP_DIR is not configured at all.  Degrade to
             # POTCAR.spec so create/derive still work without a local
@@ -508,7 +508,7 @@ class MRFVaspInputSet(VaspInputSet):
                 stacklevel=2,
             )
             kwargs = {**kwargs, "potcar_spec": True}
-            super().write_input(output_dir, *args, **kwargs)
+            super().write_input(str(output_dir), *args, **kwargs)
         except FileNotFoundError as exc:
             # pymatgen reports a configured-but-missing PSP dir as
             # "PMG_VASP_PSP_DIR='...' does not exist."  The user intended
