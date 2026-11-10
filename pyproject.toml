@@ -120,6 +120,12 @@ filterwarnings = [
     # Our own warning, expected noise in integration tests: the fake VASP
     # fixture has no vdw_kernel.bindat.
     "ignore:Cannot find vdw_kernel.bindat:UserWarning:matrifflow\\.gorun\\.cleanVASP",
+    # Our own diagnostic warning category.  The diagnostics, VaspLog and
+    # VaspDir tests emit VaspWarning records on purpose (via add()/emit())
+    # to exercise collection and emission, so the display is expected test
+    # noise.  pytest.warns() still captures them where a test asserts on a
+    # specific warning; this only silences the summary output.
+    "ignore::matrifflow.pymatgen.io.vasp.diagnostics.VaspWarning",
 ]
 markers = [
     "integration: tests that require generated VASP fixtures (see scripts/prepare_vasp_fixtures.sh)",
