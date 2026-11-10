@@ -1028,6 +1028,7 @@ def _hull_get_entries_recursively(
 
     entries = []
     n_skipped = 0
+    n_vaspdirs = len(vaspdirs)
     for vasp_path, vaspdir in alive_it(
             list(vaspdirs.items()),
             total=len(vaspdirs),
@@ -1058,7 +1059,7 @@ def _hull_get_entries_recursively(
             vaspdir.reset()
             del vaspdirs[vasp_path]  # also drop vaspdir ref from dict
 
-    print(f"Read {len(vaspdirs)} runs")
+    print(f"Read {n_vaspdirs} runs")
     print(f"Skipped: {n_skipped}")
     return entries
 
