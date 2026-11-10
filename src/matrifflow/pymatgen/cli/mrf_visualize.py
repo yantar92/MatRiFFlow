@@ -321,7 +321,7 @@ def _atat_read_clusters(path: Path) -> pd.DataFrame:
 
                 # Handle tensor format if present
                 spacing = next(clusters)
-                if spacing == "tensor":
+                if spacing.strip() == "tensor":
                     rank = int(next(clusters))
                     for _ in range(rank):
                         next(clusters)
