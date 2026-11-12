@@ -30,6 +30,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import create_autospec
 
 import pytest
 
@@ -297,26 +298,22 @@ def test_prepare_inputs_potcar_keep_skip(
 ) -> None:
     """--keep POTCAR does not regenerate an existing POTCAR."""
     (vasp_input_dir / "POTCAR").write_text("placeholder")
-    regenerated = []
-    monkeypatch.setattr(
-        vasp_mod, "_regenerate_potcar", lambda path: regenerated.append(path)
-    )
+    regenerate = create_autospec(vasp_mod._regenerate_potcar, return_value=None)
+    monkeypatch.setattr(vasp_mod, "_regenerate_potcar", regenerate)
 
     _adapter().prepare_inputs(vasp_input_dir, keep={"POTCAR"})
-    assert regenerated == []
+    regenerate.assert_not_called()
 
 
 def test_prepare_inputs_potcar_missing_regenerates(
     monkeypatch, vasp_input_dir: Path
 ) -> None:
     """A missing POTCAR triggers regeneration via _regenerate_potcar."""
-    regenerated = []
-    monkeypatch.setattr(
-        vasp_mod, "_regenerate_potcar", lambda path: regenerated.append(path)
-    )
+    regenerate = create_autospec(vasp_mod._regenerate_potcar, return_value=None)
+    monkeypatch.setattr(vasp_mod, "_regenerate_potcar", regenerate)
 
     _adapter().prepare_inputs(vasp_input_dir, keep=set())
-    assert regenerated == [str(vasp_input_dir)]
+    regenerate.assert_called_once_with(str(vasp_input_dir))
 
 
 # --- _rotate_incar_chain: converged with no chain ---------------------------
@@ -349,23 +346,11 @@ def test_modify_incar_unchanged(tmp_path: Path, capsys) -> None:
 def test_regenerate_potcar_keep_existing_false(
     monkeypatch, tmp_path: Path
 ) -> None:
-    """_regenerate_potcar passes keep_existing=False explicitly.
-
-    The mock's own default is a sentinel, so the test fails if
-    _regenerate_potcar ever starts relying on generate_potcar's
-    ``keep_existing`` default instead of passing False.
-    """
-    sentinel = object()
-    calls = []
-    monkeypatch.setattr(
-        vasp_mod,
-        "generate_potcar",
-        lambda path, keep_existing=sentinel: calls.append(
-            (path, keep_existing)
-        ),
-    )
+    """_regenerate_potcar passes keep_existing=False explicitly."""
+    generate = create_autospec(vasp_mod.generate_potcar, return_value=None)
+    monkeypatch.setattr(vasp_mod, "generate_potcar", generate)
     vasp_mod._regenerate_potcar(str(tmp_path))
-    assert calls == [(str(tmp_path), False)]
+    generate.assert_called_once_with(str(tmp_path), keep_existing=False)
 
 
 # --- prepare_inputs: keep=None, force, incar_mods, NEB ---------------------
@@ -392,17 +377,15 @@ def test_prepare_inputs_force_skips_incar_chain(
 ) -> None:
     """force=True skips INCAR chain rotation."""
     (tmp_path / "INCAR").touch()
-    rotated = []
+    rotate = create_autospec(vasp_mod._rotate_incar_chain, return_value=None)
     monkeypatch.setattr(vasp_mod, "mdp", lambda path: False)
-    monkeypatch.setattr(
-        vasp_mod, "_rotate_incar_chain", lambda path: rotated.append(path)
-    )
+    monkeypatch.setattr(vasp_mod, "_rotate_incar_chain", rotate)
     monkeypatch.setattr(
         vasp_mod.VaspAdapter, "_prepare_single", lambda self, path, keep: None
     )
 
     _adapter().prepare_inputs(tmp_path, force=True)
-    assert rotated == []
+    rotate.assert_not_called()
 
 
 def test_prepare_inputs_applies_incar_mods_before_prepare(
@@ -479,16 +462,14 @@ def test_prepare_single_keep_poscar(
     monkeypatch.setattr(
         vasp_mod, "maybe_regenerate", lambda *args, **kwargs: None
     )
-    contcar_calls = []
-    monkeypatch.setattr(
-        vasp_mod, "contcar_to_poscar", lambda path: contcar_calls.append(path)
-    )
+    copy_contcar = create_autospec(vasp_mod.contcar_to_poscar, return_value=None)
+    monkeypatch.setattr(vasp_mod, "contcar_to_poscar", copy_contcar)
 
     _adapter()._prepare_single(vasp_input_dir, keep={"POSCAR"})
     out = capsys.readouterr().out
     if poscar_exists:
         assert "Keeping existing POSCAR" in out
-        assert contcar_calls == []
+        copy_contcar.assert_not_called()
     else:
         assert "POSCAR does not exist" in out
-        assert contcar_calls == [str(vasp_input_dir)]
+        copy_contcar.assert_called_once_with(str(vasp_input_dir))

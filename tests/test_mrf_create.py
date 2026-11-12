@@ -30,6 +30,7 @@
 from __future__ import annotations
 
 import argparse
+from unittest.mock import create_autospec
 
 import pymatgen.core as pmg
 import pytest
@@ -200,17 +201,13 @@ def test_create_dispatch_file(monkeypatch, tmp_path) -> None:
 def test_create_dispatch_atom_name(monkeypatch) -> None:
     """An atom+cell string routes through create_from_atom_name."""
     records = _patch_inputset(monkeypatch)
-    calls: list = []
-    monkeypatch.setattr(
-        mrf_create,
-        'create_from_atom_name',
-        lambda name, size: calls.append((name, size)) or 'FROM_ATOM',
-    )
+    create = create_autospec(mrf_create.create_from_atom_name, return_value='FROM_ATOM')
+    monkeypatch.setattr(mrf_create, 'create_from_atom_name', create)
 
     args = argparse.Namespace(what='Li 2x3x4', output=None)
     assert mrf_create.create(args) == 0
 
-    assert calls == [('Li', [2.0, 3.0, 4.0])]
+    create.assert_called_once_with('Li', [2.0, 3.0, 4.0])
     assert len(records) == 1
     assert records[0].structure == 'FROM_ATOM'
     assert records[0].kwargs['user_incar_settings'] == {
@@ -221,17 +218,13 @@ def test_create_dispatch_atom_name(monkeypatch) -> None:
 def test_create_dispatch_mpid(monkeypatch) -> None:
     """Anything else is treated as a Materials Project id."""
     records = _patch_inputset(monkeypatch)
-    calls: list = []
-    monkeypatch.setattr(
-        mrf_create,
-        'create_from_mpid',
-        lambda mpid: calls.append(mpid) or 'FROM_MPID',
-    )
+    create = create_autospec(mrf_create.create_from_mpid, return_value='FROM_MPID')
+    monkeypatch.setattr(mrf_create, 'create_from_mpid', create)
 
     args = argparse.Namespace(what='mp-1234', output=None)
     assert mrf_create.create(args) == 0
 
-    assert calls == ['mp-1234']
+    create.assert_called_once_with('mp-1234')
     assert len(records) == 1
     assert records[0].structure == 'FROM_MPID'
 

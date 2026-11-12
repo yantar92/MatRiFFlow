@@ -30,6 +30,7 @@
 from __future__ import annotations
 
 import argparse
+from unittest.mock import create_autospec
 
 import matrifflow.pymatgen.cli.mrf_run as mrf_run
 
@@ -57,28 +58,16 @@ def test_add_args_empty_tail() -> None:
 
 def test_run_forwards_argv_and_prog(monkeypatch) -> None:
     """run() forwards args.argv to gorun_main with a fixed prog."""
-    calls: dict = {}
-
-    def fake_main(argv=None, prog=None):
-        calls['argv'] = argv
-        calls['prog'] = prog
-        return 3
-
-    monkeypatch.setattr(mrf_run, 'gorun_main', fake_main)
+    main = create_autospec(mrf_run.gorun_main, return_value=3)
+    monkeypatch.setattr(mrf_run, 'gorun_main', main)
     assert mrf_run.run(
         argparse.Namespace(argv=['vasp', '--dir', 'x'])) == 3
-    assert calls == {'argv': ['vasp', '--dir', 'x'], 'prog': 'mrf run'}
+    main.assert_called_once_with(['vasp', '--dir', 'x'], prog='mrf run')
 
 
 def test_run_defaults_to_empty_argv(monkeypatch) -> None:
     """run() falls back to an empty argv list when the attribute is absent."""
-    calls: dict = {}
-
-    def fake_main(argv=None, prog=None):
-        calls['argv'] = argv
-        calls['prog'] = prog
-        return 0
-
-    monkeypatch.setattr(mrf_run, 'gorun_main', fake_main)
+    main = create_autospec(mrf_run.gorun_main, return_value=0)
+    monkeypatch.setattr(mrf_run, 'gorun_main', main)
     mrf_run.run(argparse.Namespace())
-    assert calls == {'argv': [], 'prog': 'mrf run'}
+    main.assert_called_once_with([], prog='mrf run')

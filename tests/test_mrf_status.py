@@ -34,6 +34,7 @@ import io
 import os
 import time
 from pathlib import Path
+from unittest.mock import create_autospec
 
 import pytest
 from pymatgen.core import Structure
@@ -278,14 +279,10 @@ def test_slurm_runningp_neb_parent_recursion(monkeypatch, tmp_path) -> None:
     image = parent / '00'
     image.mkdir()
 
-    calls: list[int] = []
-    monkeypatch.setattr(
-        mrf_status,
-        '_slurm_get_queue',
-        lambda: calls.append(1) or [],
-    )
+    get_queue = create_autospec(mrf_status._slurm_get_queue, return_value=[])
+    monkeypatch.setattr(mrf_status, '_slurm_get_queue', get_queue)
     assert slurm_runningp(str(image)) is False
-    assert len(calls) == 2  # once for image, once for parent
+    assert get_queue.call_count == 2  # once for image, once for parent
 
 
 ## custom_showwarning
@@ -587,14 +584,12 @@ def test_status_problematic_filters_clean(tmp_path, monkeypatch) -> None:
 def test_status_fast_skips_timing(tmp_path, monkeypatch) -> None:
     """--fast does not parse OUTCAR timing for running runs."""
     path, fake = _status_dir(tmp_path, 'run', _FakeVaspdir())
-    calls = []
-    monkeypatch.setattr(
-        mrf_status, 'read_outcar_timing_stats',
-        lambda p: calls.append(p) or None)
+    read_timing = create_autospec(mrf_status.read_outcar_timing_stats, return_value=None)
+    monkeypatch.setattr(mrf_status, 'read_outcar_timing_stats', read_timing)
     text, code = _status(
         monkeypatch, {path: fake}, slurm_paths={path}, fast=True)
     assert code == 0
-    assert calls == []
+    read_timing.assert_not_called()
     assert 'SCF:' not in text
 
 

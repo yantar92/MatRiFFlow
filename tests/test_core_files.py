@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from unittest.mock import Mock
 
 from matrifflow.gorun.core.files import (
     _any_output_older,
@@ -41,14 +42,6 @@ from matrifflow.gorun.core.files import (
 
 def _set_mtime(path: Path, when: float) -> None:
     os.utime(path, (when, when))
-
-
-class _Recorder:
-    def __init__(self) -> None:
-        self.called = False
-
-    def __call__(self) -> None:
-        self.called = True
 
 
 def test_newest_source_mtime_empty() -> None:
@@ -84,9 +77,9 @@ def test_any_output_older_compares_mtime(tmp_path: Path) -> None:
 
 def test_maybe_regenerate_missing_file(tmp_path: Path) -> None:
     """A missing output file is regenerated."""
-    regen = _Recorder()
+    regen = Mock(return_value=None)
     assert maybe_regenerate(tmp_path, "POTCAR", None, regen) is True
-    assert regen.called is True
+    regen.assert_called_once_with()
 
 
 def test_maybe_regenerate_not_kept_newer_than_sources(tmp_path: Path) -> None:
@@ -97,11 +90,11 @@ def test_maybe_regenerate_not_kept_newer_than_sources(tmp_path: Path) -> None:
     src.touch()
     _set_mtime(out, 200.0)
     _set_mtime(src, 100.0)
-    regen = _Recorder()
+    regen = Mock(return_value=None)
     assert (
         maybe_regenerate(tmp_path, "POTCAR", set(), regen, older_than=[src]) is False
     )
-    assert regen.called is False
+    regen.assert_not_called()
 
 
 def test_maybe_regenerate_not_kept_older_than_sources(tmp_path: Path) -> None:
@@ -112,47 +105,47 @@ def test_maybe_regenerate_not_kept_older_than_sources(tmp_path: Path) -> None:
     src.touch()
     _set_mtime(out, 100.0)
     _set_mtime(src, 200.0)
-    regen = _Recorder()
+    regen = Mock(return_value=None)
     assert (
         maybe_regenerate(tmp_path, "POTCAR", set(), regen, older_than=[src]) is True
     )
-    assert regen.called is True
+    regen.assert_called_once_with()
 
 
 def test_maybe_regenerate_kept_validate_passes(tmp_path: Path) -> None:
     """A kept file that passes validation is not regenerated."""
     (tmp_path / "POTCAR").touch()
-    regen = _Recorder()
+    regen = Mock(return_value=None)
     assert (
         maybe_regenerate(tmp_path, "POTCAR", {"POTCAR"}, regen, validate=lambda: True)
         is False
     )
-    assert regen.called is False
+    regen.assert_not_called()
 
 
 def test_maybe_regenerate_kept_validate_fails(tmp_path: Path) -> None:
     """A kept file that fails validation is regenerated."""
     (tmp_path / "POTCAR").touch()
-    regen = _Recorder()
+    regen = Mock(return_value=None)
     assert (
         maybe_regenerate(tmp_path, "POTCAR", {"POTCAR"}, regen, validate=lambda: False)
         is True
     )
-    assert regen.called is True
+    regen.assert_called_once_with()
 
 
 def test_maybe_regenerate_list_collective_skip(tmp_path: Path) -> None:
     """A list output group is skipped when every file exists and is kept."""
     (tmp_path / "a").touch()
     (tmp_path / "b").touch()
-    regen = _Recorder()
+    regen = Mock(return_value=None)
     assert maybe_regenerate(tmp_path, ["a", "b"], {"a", "b"}, regen) is False
-    assert regen.called is False
+    regen.assert_not_called()
 
 
 def test_maybe_regenerate_list_collective_missing(tmp_path: Path) -> None:
     """A list output group is regenerated when any member is missing."""
     (tmp_path / "a").touch()
-    regen = _Recorder()
+    regen = Mock(return_value=None)
     assert maybe_regenerate(tmp_path, ["a", "b"], {"a", "b"}, regen) is True
-    assert regen.called is True
+    regen.assert_called_once_with()

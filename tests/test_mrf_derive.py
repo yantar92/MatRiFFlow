@@ -33,6 +33,7 @@ import argparse
 import copy
 import dataclasses
 import os
+from unittest.mock import create_autospec
 
 import pytest
 from pymatgen.core import Lattice, Structure
@@ -191,20 +192,15 @@ def test_add_args_input_directory_positional() -> None:
 def test_perturb_calls_structure_perturb(monkeypatch) -> None:
     """Perturb forwards distance/frac_tol and names the output dir."""
     records = _patch_inputset(monkeypatch, structure=_make_structure())
-    calls: dict = {}
-    monkeypatch.setattr(
-        mrf_derive,
-        "structure_perturb",
-        lambda **kw: calls.update(kw),
-    )
+    perturb = create_autospec(mrf_derive.structure_perturb, return_value=None)
+    monkeypatch.setattr(mrf_derive, "structure_perturb", perturb)
 
     args = _ns(distance=0.2, frac_tol=0.4)
     result = mrf_derive.perturb(args)
 
-    assert calls["distance"] == 0.2
-    assert calls["frac_tol"] == 0.4
-    assert calls["min_distance"] is None
-    assert calls["structure"] is records[0].structure
+    perturb.assert_called_once_with(
+        structure=records[0].structure, distance=0.2, frac_tol=0.4, min_distance=None
+    )
     assert records[0].name == "PERTURB.0.2"
     assert result["inputsets"] == [records[0]]
 

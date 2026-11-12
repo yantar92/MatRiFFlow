@@ -34,6 +34,8 @@ import importlib
 import io
 import logging
 import sys
+from types import SimpleNamespace
+from unittest.mock import Mock, create_autospec
 
 import pytest
 
@@ -81,8 +83,8 @@ def test_showwarning_honours_file_argument() -> None:
 
 def test_setup_logger_verbosity_levels(monkeypatch) -> None:
     """Verbosity selects the log level and number of handlers."""
-    calls: list[dict] = []
-    monkeypatch.setattr(logging, 'basicConfig', lambda **kw: calls.append(kw))
+    configure = create_autospec(logging.basicConfig, return_value=None)
+    monkeypatch.setattr(logging, 'basicConfig', configure)
     monkeypatch.setattr(logging, 'FileHandler', lambda *a, **k: object())
     monkeypatch.setattr(logging, 'StreamHandler', lambda *a, **k: object())
 
@@ -90,6 +92,8 @@ def test_setup_logger_verbosity_levels(monkeypatch) -> None:
     mrf.setup_logger(argparse.Namespace(verbosity=1))
     mrf.setup_logger(argparse.Namespace(verbosity=2))
 
+    assert configure.call_count == 3
+    calls = [entry.kwargs for entry in configure.call_args_list]
     assert calls[0]['level'] == logging.INFO
     assert len(calls[0]['handlers']) == 1  # file only
     assert calls[1]['level'] == logging.INFO
@@ -103,17 +107,13 @@ def test_setup_logger_verbosity_levels(monkeypatch) -> None:
 
 def test_main_run_intercepts_to_gorun(monkeypatch) -> None:
     """``mrf run ...`` is forwarded to gorun before argparse runs."""
-    calls: dict = {}
+    from matrifflow.gorun import gorun
+
+    main = create_autospec(gorun.main, return_value=0)
     monkeypatch.setattr(sys, 'argv', ['mrf', 'run', 'vasp', '--dir', 'x'])
-
-    def fake_gorun_main(argv=None, prog=None):
-        calls['argv'] = argv
-        calls['prog'] = prog
-        return 0
-
-    monkeypatch.setattr('matrifflow.gorun.gorun.main', fake_gorun_main)
+    monkeypatch.setattr(gorun, 'main', main)
     assert mrf.main() == 0
-    assert calls == {'argv': ['vasp', '--dir', 'x'], 'prog': 'mrf run'}
+    main.assert_called_once_with(['vasp', '--dir', 'x'], prog='mrf run')
 
 
 def test_main_dispatches_to_subcommand(monkeypatch) -> None:
@@ -121,20 +121,11 @@ def test_main_dispatches_to_subcommand(monkeypatch) -> None:
     monkeypatch.setattr(sys, 'argv', ['mrf', 'create'])
     monkeypatch.setattr(mrf, 'setup_logger', lambda args: None)
 
-    class _FakeModule:
-        def __init__(self) -> None:
-            self.add_args_called = False
-
-        def add_args(self, parser) -> None:
-            self.add_args_called = True
-
-        def create(self, args) -> int:
-            return 7
-
-    fake = _FakeModule()
+    fake = SimpleNamespace(add_args=Mock(return_value=None), create=Mock(return_value=7))
     _patch_create_module(monkeypatch, fake)
     assert mrf.main() == 7
-    assert fake.add_args_called
+    fake.add_args.assert_called_once()
+    fake.create.assert_called_once()
 
 
 def test_main_value_error_is_reported(monkeypatch, capsys) -> None:
@@ -142,14 +133,10 @@ def test_main_value_error_is_reported(monkeypatch, capsys) -> None:
     monkeypatch.setattr(sys, 'argv', ['mrf', 'create'])
     monkeypatch.setattr(mrf, 'setup_logger', lambda args: None)
 
-    class _FakeModule:
-        def add_args(self, parser) -> None:
-            pass
-
-        def create(self, args) -> int:
-            raise ValueError('nope')
-
-    _patch_create_module(monkeypatch, _FakeModule())
+    fake = SimpleNamespace(
+        add_args=Mock(return_value=None), create=Mock(side_effect=ValueError('nope'))
+    )
+    _patch_create_module(monkeypatch, fake)
     assert mrf.main() == 1
     assert 'nope' in capsys.readouterr().err
 
@@ -159,14 +146,10 @@ def test_main_value_error_reraised_with_verbose(monkeypatch) -> None:
     monkeypatch.setattr(sys, 'argv', ['mrf', '-vv', 'create'])
     monkeypatch.setattr(mrf, 'setup_logger', lambda args: None)
 
-    class _FakeModule:
-        def add_args(self, parser) -> None:
-            pass
-
-        def create(self, args) -> int:
-            raise ValueError('nope')
-
-    _patch_create_module(monkeypatch, _FakeModule())
+    fake = SimpleNamespace(
+        add_args=Mock(return_value=None), create=Mock(side_effect=ValueError('nope'))
+    )
+    _patch_create_module(monkeypatch, fake)
     with pytest.raises(ValueError, match='nope'):
         mrf.main()
 

@@ -30,7 +30,7 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
+from unittest.mock import call, create_autospec
 
 import pytest
 
@@ -177,16 +177,12 @@ def test_write_example_config_file(monkeypatch, tmp_path) -> None:
 
 def test_make_vasp_adapter_incar_parsing(monkeypatch) -> None:
     """--incar KEY:VAL pairs are parsed into an incar_mods dict."""
-    captured: dict = {}
-
-    def fake_vasp_adapter(**kwargs):
-        captured.update(kwargs)
-        return "adapter"
-
-    monkeypatch.setattr(gorun, "VaspAdapter", fake_vasp_adapter)
+    adapter = create_autospec(gorun.VaspAdapter, return_value="adapter")
+    monkeypatch.setattr(gorun, "VaspAdapter", adapter)
     ns = gorun._parse_args(["vasp", "--incar", "ALGO:Normal", "NELM:200"])
     gorun._make_vasp_adapter(ns)
-    assert captured["incar_mods"] == {"ALGO": "Normal", "NELM": "200"}
+    adapter.assert_called_once()
+    assert adapter.call_args.kwargs["incar_mods"] == {"ALGO": "Normal", "NELM": "200"}
 
 
 def test_make_vasp_adapter_legacy_keep_flags(monkeypatch) -> None:
@@ -219,18 +215,14 @@ def test_make_vasp_adapter_invalid_incar_exits(monkeypatch) -> None:
 
 def test_make_mace_adapter_section_routing(monkeypatch) -> None:
     """SECTION.KEY:VAL routes to a section; bare KEY:VAL routes to None."""
-    captured: dict = {}
-
-    def fake_mace_adapter(**kwargs):
-        captured.update(kwargs)
-        return "adapter"
-
-    monkeypatch.setattr(gorun, "MaceMultiheadFinetuneAdapter", fake_mace_adapter)
+    adapter = create_autospec(gorun.MaceMultiheadFinetuneAdapter, return_value="adapter")
+    monkeypatch.setattr(gorun, "MaceMultiheadFinetuneAdapter", adapter)
     ns = gorun._parse_args(
         ["mace-finetune", "--incar", "run_train.lr:0.001", "batch_size:12"]
     )
     gorun._make_mace_adapter(ns)
-    assert captured["incar_overrides"] == {
+    adapter.assert_called_once()
+    assert adapter.call_args.kwargs["incar_overrides"] == {
         "run_train": {"lr": "0.001"},
         None: {"batch_size": "12"},
     }
@@ -297,28 +289,24 @@ def test_dispatch_namespace_multiple_dirs(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
     (tmp_path / "a").mkdir()
     (tmp_path / "b").mkdir()
-    calls: list[Path] = []
-
-    def fake_dispatch_single(args, directory):
-        calls.append(directory)
-        return 0
-
-    monkeypatch.setattr(gorun, "_dispatch_single", fake_dispatch_single)
+    dispatch = create_autospec(gorun._dispatch_single, return_value=0)
+    monkeypatch.setattr(gorun, "_dispatch_single", dispatch)
     ns = gorun._parse_args(["vasp", "--dir", "a", "b"])
     assert gorun._dispatch_namespace(ns) == 0
-    assert calls == [(tmp_path / "a").resolve(), (tmp_path / "b").resolve()]
+    assert dispatch.call_args_list == [
+        call(ns, (tmp_path / "a").resolve()),
+        call(ns, (tmp_path / "b").resolve()),
+    ]
 
 
 def test_dispatch_namespace_missing_dir_skips(monkeypatch, tmp_path) -> None:
     """A non-existent --dir is skipped with a warning, not an error."""
     monkeypatch.chdir(tmp_path)
-    calls: list[Path] = []
-    monkeypatch.setattr(
-        gorun, "_dispatch_single", lambda args, d: calls.append(d) or 0
-    )
+    dispatch = create_autospec(gorun._dispatch_single, return_value=0)
+    monkeypatch.setattr(gorun, "_dispatch_single", dispatch)
     ns = gorun._parse_args(["vasp", "--dir", "missing"])
     assert gorun._dispatch_namespace(ns) == 0
-    assert calls == []
+    dispatch.assert_not_called()
 
 
 def test_dispatch_namespace_continues_on_error(monkeypatch, tmp_path) -> None:
@@ -326,30 +314,26 @@ def test_dispatch_namespace_continues_on_error(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
     (tmp_path / "a").mkdir()
     (tmp_path / "b").mkdir()
-    calls: list[Path] = []
-
-    def fake_dispatch_single(args, directory):
-        calls.append(directory)
-        if directory.name == "a":
-            raise ValueError("boom")
-        return 0
-
-    monkeypatch.setattr(gorun, "_dispatch_single", fake_dispatch_single)
+    dispatch = create_autospec(
+        gorun._dispatch_single, side_effect=[ValueError("boom"), 0]
+    )
+    monkeypatch.setattr(gorun, "_dispatch_single", dispatch)
     ns = gorun._parse_args(["vasp", "--dir", "a", "b"])
     assert gorun._dispatch_namespace(ns) == 1
-    assert calls == [(tmp_path / "a").resolve(), (tmp_path / "b").resolve()]
+    assert dispatch.call_args_list == [
+        call(ns, (tmp_path / "a").resolve()),
+        call(ns, (tmp_path / "b").resolve()),
+    ]
 
 
 def test_dispatch_namespace_single_dir_default(monkeypatch, tmp_path) -> None:
     """Without --dir, dispatch runs once in the current directory."""
     monkeypatch.chdir(tmp_path)
-    calls: list[Path] = []
-    monkeypatch.setattr(
-        gorun, "_dispatch_single", lambda args, d: calls.append(d) or 0
-    )
+    dispatch = create_autospec(gorun._dispatch_single, return_value=0)
+    monkeypatch.setattr(gorun, "_dispatch_single", dispatch)
     ns = gorun._parse_args(["vasp"])
     assert gorun._dispatch_namespace(ns) == 0
-    assert calls == [tmp_path.resolve()]
+    dispatch.assert_called_once_with(ns, tmp_path.resolve())
 
 
 def test_run_directory_debug_reraises(monkeypatch, tmp_path) -> None:
@@ -378,28 +362,25 @@ def test_run_directory_swallows_by_default(monkeypatch, tmp_path) -> None:
 
 def test_run_namespace_delegation(monkeypatch) -> None:
     """A Namespace is filled and passed to _dispatch_namespace."""
-    calls: list = []
-
-    def fake_dispatch(args):
-        calls.append(args)
-        return 0
-
-    monkeypatch.setattr(gorun, "_dispatch_namespace", fake_dispatch)
+    dispatch = create_autospec(gorun._dispatch_namespace, return_value=0)
+    monkeypatch.setattr(gorun, "_dispatch_namespace", dispatch)
     assert gorun.run(argparse.Namespace(software="vasp")) == 0
-    assert calls[0].software == "vasp"
+    dispatch.assert_called_once()
+    assert dispatch.call_args.args[0].software == "vasp"
 
 
 def test_run_none_delegates_as_empty_namespace(monkeypatch) -> None:
     """run() with no argument behaves as an empty Namespace."""
-    calls: list = []
-    monkeypatch.setattr(gorun, "_dispatch_namespace", lambda args: calls.append(args) or 0)
+    dispatch = create_autospec(gorun._dispatch_namespace, return_value=0)
+    monkeypatch.setattr(gorun, "_dispatch_namespace", dispatch)
     assert gorun.run() == 0
-    assert calls[0].software == "vasp"
+    dispatch.assert_called_once()
+    assert dispatch.call_args.args[0].software == "vasp"
 
 
 def test_run_list_delegates_to_main(monkeypatch) -> None:
     """A list argument is delegated to main() as argv."""
-    calls: list = []
-    monkeypatch.setattr(gorun, "main", lambda argv: calls.append(argv) or 0)
+    main = create_autospec(gorun.main, return_value=0)
+    monkeypatch.setattr(gorun, "main", main)
     assert gorun.run(["vasp"]) == 0
-    assert calls == [["vasp"]]
+    main.assert_called_once_with(["vasp"])

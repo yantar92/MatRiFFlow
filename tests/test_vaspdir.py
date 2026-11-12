@@ -42,6 +42,7 @@ import signal
 import time
 import warnings
 from pathlib import Path
+from unittest.mock import Mock, call
 
 import numpy as np
 import pytest
@@ -882,26 +883,26 @@ def test_getitem_timeout_returns_none(tmp_path, monkeypatch) -> None:
 def test_getitem_arms_and_disarms_alarm(tmp_path, monkeypatch) -> None:
     """Parsing arms SIGALRM with TIMEOUT, then disarms it on success."""
     _write_poscar(tmp_path, a=5.0)
-    calls: list[int] = []
-    monkeypatch.setattr(signal, "alarm", lambda n: calls.append(n))
+    alarm = Mock(return_value=0)
+    monkeypatch.setattr(signal, "alarm", alarm)
     d = MRFVaspDir(str(tmp_path))
     d["POSCAR"]
-    assert calls == [MRFVaspDir.TIMEOUT, 0]
+    assert alarm.call_args_list == [call(MRFVaspDir.TIMEOUT), call(0)]
 
 
 def test_getitem_timeout_disarms_alarm(tmp_path, monkeypatch) -> None:
     """A TimeoutException is swallowed and the alarm is disarmed."""
     _write_poscar(tmp_path, a=5.0)
-    calls: list[int] = []
+    alarm = Mock(return_value=0)
 
     def _timeout(*args, **kwargs):
         raise TimeoutException()
 
     monkeypatch.setattr(Poscar, "from_file", classmethod(_timeout))
-    monkeypatch.setattr(signal, "alarm", lambda n: calls.append(n))
+    monkeypatch.setattr(signal, "alarm", alarm)
     d = MRFVaspDir(str(tmp_path))
     assert d["POSCAR"] is None
-    assert calls == [MRFVaspDir.TIMEOUT, 0]
+    assert alarm.call_args_list == [call(MRFVaspDir.TIMEOUT), call(0)]
 
 
 # --- Group F: directory / cache infrastructure --------------------------------

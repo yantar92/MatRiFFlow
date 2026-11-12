@@ -30,6 +30,7 @@
 from __future__ import annotations
 
 import sys
+from unittest.mock import create_autospec
 
 import matrifflow.gorun.gorun as gorun
 import matrifflow.gorun.gorun_maps as gorun_maps
@@ -37,19 +38,19 @@ import matrifflow.gorun.gorun_maps as gorun_maps
 
 def test_main_prepends_maps_subcommand(monkeypatch) -> None:
     """Explicit argv is forwarded as ``gorun maps <argv>``."""
-    calls: list[list[str]] = []
-    monkeypatch.setattr(gorun, "main", lambda argv: calls.append(argv) or 0)
+    main = create_autospec(gorun.main, return_value=0)
+    monkeypatch.setattr(gorun, "main", main)
     assert gorun_maps.main(["-d", "--verbose"]) == 0
-    assert calls == [["maps", "-d", "--verbose"]]
+    main.assert_called_once_with(["maps", "-d", "--verbose"])
 
 
 def test_main_no_args_uses_sys_argv(monkeypatch) -> None:
     """Without argv, the process argv is read and forwarded."""
-    calls: list[list[str]] = []
-    monkeypatch.setattr(gorun, "main", lambda argv: calls.append(argv) or 0)
+    main = create_autospec(gorun.main, return_value=0)
+    monkeypatch.setattr(gorun, "main", main)
     monkeypatch.setattr(sys, "argv", ["gorun-maps", "foo"])
     assert gorun_maps.main() == 0
-    assert calls == [["maps", "foo"]]
+    main.assert_called_once_with(["maps", "foo"])
 
 
 def test_main_propagates_return_code(monkeypatch) -> None:

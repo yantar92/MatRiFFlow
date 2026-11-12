@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import create_autospec
 
 import pandas as pd
 import pytest
@@ -208,15 +209,11 @@ def test_constructor_incar_overrides_section_routing(monkeypatch) -> None:
 def test_constructor_bootstrap_raises(monkeypatch) -> None:
     """No TOML and no CLI input writes a reference and raises ValueError."""
     monkeypatch.setattr(mace_mod, "read_incar_toml", lambda: {})
-    writes = []
-    monkeypatch.setattr(
-        mace_mod,
-        "write_incar_toml_sections",
-        lambda *args, **kwargs: writes.append(args),
-    )
+    writes = create_autospec(mace_mod.write_incar_toml_sections, return_value=None)
+    monkeypatch.setattr(mace_mod, "write_incar_toml_sections", writes)
     with pytest.raises(ValueError):
         MaceMultiheadFinetuneAdapter()
-    assert len(writes) == 1
+    writes.assert_called_once()
 
 
 def test_constructor_validate_missing_required_raises() -> None:
@@ -361,18 +358,12 @@ def test_train_stage_swa_ema_off(tmp_path: Path) -> None:
 def test_prepare_inputs_orchestration(monkeypatch, tmp_path: Path) -> None:
     """prepare_inputs writes back INCAR.toml and regenerates train/heads."""
     adapter = _make()
-    writes = []
-    monkeypatch.setattr(
-        mace_mod,
-        "write_incar_toml_sections",
-        lambda *args, **kwargs: writes.append(args),
-    )
-    regenerated = []
-    monkeypatch.setattr(
-        mace_mod,
-        "maybe_regenerate",
-        lambda path, filename, keep, regenerate=None, older_than=None: regenerated.append(filename),
-    )
+    writes = create_autospec(mace_mod.write_incar_toml_sections, return_value=None)
+    monkeypatch.setattr(mace_mod, "write_incar_toml_sections", writes)
+    regenerate = create_autospec(mace_mod.maybe_regenerate, return_value=None)
+    monkeypatch.setattr(mace_mod, "maybe_regenerate", regenerate)
     adapter.prepare_inputs(tmp_path, keep=set())
-    assert len(writes) == 1
-    assert regenerated == [["train.xyz", "val.xyz"], "heads.json"]
+    writes.assert_called_once()
+    assert [args.args[1] for args in regenerate.call_args_list] == [
+        ["train.xyz", "val.xyz"], "heads.json"
+    ]

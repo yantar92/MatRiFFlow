@@ -35,6 +35,7 @@ atat-local adapter's integration with real ATAT/VASP fixtures.
 from __future__ import annotations
 
 import sys
+from unittest.mock import create_autospec
 
 import matrifflow.gorun.gorun as gorun
 import matrifflow.gorun.gorun_atat_local as gorun_atat_local
@@ -42,19 +43,19 @@ import matrifflow.gorun.gorun_atat_local as gorun_atat_local
 
 def test_main_prepends_atat_local_subcommand(monkeypatch) -> None:
     """Explicit argv is forwarded as ``gorun atat-local --local <argv>``."""
-    calls: list[list[str]] = []
-    monkeypatch.setattr(gorun, "main", lambda argv: calls.append(argv) or 0)
+    main = create_autospec(gorun.main, return_value=0)
+    monkeypatch.setattr(gorun, "main", main)
     assert gorun_atat_local.main(["-d"]) == 0
-    assert calls == [["atat-local", "--local", "-d"]]
+    main.assert_called_once_with(["atat-local", "--local", "-d"])
 
 
 def test_main_no_args_uses_sys_argv(monkeypatch) -> None:
     """Without argv, the process argv is read and forwarded."""
-    calls: list[list[str]] = []
-    monkeypatch.setattr(gorun, "main", lambda argv: calls.append(argv) or 0)
+    main = create_autospec(gorun.main, return_value=0)
+    monkeypatch.setattr(gorun, "main", main)
     monkeypatch.setattr(sys, "argv", ["gorun-atat-local", "foo"])
     assert gorun_atat_local.main() == 0
-    assert calls == [["atat-local", "--local", "foo"]]
+    main.assert_called_once_with(["atat-local", "--local", "foo"])
 
 
 def test_main_propagates_return_code(monkeypatch) -> None:

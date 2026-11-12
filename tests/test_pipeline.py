@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import create_autospec
 
 import matrifflow.gorun.core.pipeline as pipeline_mod
 
@@ -145,19 +146,16 @@ def test_backup_current_dir(monkeypatch, tmp_path: Path) -> None:
     (tmp_path / "gorun_2").mkdir()
     (tmp_path / "gorun_ready").touch()
 
-    calls = []
+    run = create_autospec(pipeline_mod.subprocess.check_call, return_value=0)
     monkeypatch.setattr(pipeline_mod, "barf_if_no_cmd", lambda cmd: None)
-    monkeypatch.setattr(
-        pipeline_mod.subprocess,
-        "check_call",
-        lambda cmd, shell=True: calls.append(cmd),
-    )
+    monkeypatch.setattr(pipeline_mod.subprocess, "check_call", run)
 
     _backup_current_dir(tmp_path, excludes=["WAVECAR"])
 
-    assert len(calls) == 1
-    assert "--exclude 'gorun_*' --exclude 'WAVECAR'" in calls[0]
-    assert "gorun_3" in calls[0]
+    run.assert_called_once()
+    command = run.call_args.args[0]
+    assert "--exclude 'gorun_*' --exclude 'WAVECAR'" in command
+    assert "gorun_3" in command
     assert not (tmp_path / "gorun_ready").exists()
     assert (tmp_path / "gorun_2.tar.gz").exists()
     assert not (tmp_path / "gorun_2").exists()
@@ -210,7 +208,7 @@ def test_dispatch_run_no_valid_input(monkeypatch, tmp_path: Path, stub_adapter) 
     """No valid input exits 1."""
     monkeypatch.chdir(tmp_path)
     _setup_pipeline(monkeypatch)
-    stub_adapter.responses["is_valid_input"] = False
+    stub_adapter.is_valid_input.return_value = False
     assert dispatch_run(_args(), stub_adapter) == 1
 
 
@@ -218,7 +216,7 @@ def test_dispatch_run_converged_guard(monkeypatch, tmp_path: Path, stub_adapter)
     """A converged run exits 1 when not forced."""
     monkeypatch.chdir(tmp_path)
     _setup_pipeline(monkeypatch)
-    stub_adapter.responses["is_converged"] = True
+    stub_adapter.is_converged.return_value = True
     assert dispatch_run(_args(), stub_adapter) == 1
 
 
@@ -276,7 +274,7 @@ def test_dispatch_run_skip_setup_env(monkeypatch, tmp_path: Path, stub_adapter) 
     monkeypatch.setenv("GORUN_SKIP_SETUP", "1")
 
     assert dispatch_run(_args(mark=True), stub_adapter) == 0
-    assert not any(c[0] == "setup_commands" for c in stub_adapter.calls)
+    stub_adapter.setup_commands.assert_not_called()
 
 
 def test_dispatch_run_sbatch_submit_success(
@@ -325,18 +323,10 @@ def test_dispatch_run_force_bypasses_running(monkeypatch, tmp_path: Path, stub_a
 def test_dispatch_run_local_no_config_falls_back(monkeypatch, tmp_path: Path, stub_adapter) -> None:
     """--local with no config file runs without resolving a server."""
     monkeypatch.chdir(tmp_path)
-    calls: list[str] = []
-
-    def fake_load_config(args):
-        calls.append("load_config")
-        return None
-
-    def fake_resolve_server(config):
-        calls.append("resolve_server")
-        return "testserver"
-
-    monkeypatch.setattr(pipeline_mod, "load_config", fake_load_config)
-    monkeypatch.setattr(pipeline_mod, "resolve_server", fake_resolve_server)
+    load_config = create_autospec(pipeline_mod.load_config, return_value=None)
+    resolve_server = create_autospec(pipeline_mod.resolve_server, return_value="testserver")
+    monkeypatch.setattr(pipeline_mod, "load_config", load_config)
+    monkeypatch.setattr(pipeline_mod, "resolve_server", resolve_server)
     monkeypatch.setattr(pipeline_mod, "directory_queued_p", lambda path: False)
     monkeypatch.setattr(pipeline_mod, "user_job_count", lambda: 0)
     monkeypatch.setattr(
@@ -351,7 +341,8 @@ def test_dispatch_run_local_no_config_falls_back(monkeypatch, tmp_path: Path, st
 
     assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
     # Config is read, but with no result the server is never resolved.
-    assert calls == ["load_config"]
+    load_config.assert_called_once()
+    resolve_server.assert_not_called()
     assert (tmp_path / "gorun_ready").exists()
     sub = (tmp_path / "sub").read_text()
     # No sbatch headers for a local run.
@@ -369,8 +360,7 @@ def test_dispatch_run_local_honors_matching_server_section(
     }
     _setup_pipeline(monkeypatch, config=config, server="testserver")
     assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
-    setup_calls = [c for c in stub_adapter.calls if c[0] == "setup_commands"]
-    assert setup_calls[0][1][0] == config["testserver"]
+    stub_adapter.setup_commands.assert_called_once_with(config["testserver"])
 
 
 def test_dispatch_run_local_unmatched_server_falls_back(
@@ -394,8 +384,7 @@ def test_dispatch_run_local_unmatched_server_falls_back(
     )
 
     assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
-    setup_calls = [c for c in stub_adapter.calls if c[0] == "setup_commands"]
-    assert setup_calls[0][1][0] == {}
+    stub_adapter.setup_commands.assert_called_once_with({})
 
 
 def test_dispatch_run_unknown_server_exits_without_local(
