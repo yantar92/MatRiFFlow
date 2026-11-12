@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from types import SimpleNamespace
 
 import matrifflow.gorun.core.pipeline as pipeline_mod
 
@@ -162,6 +163,22 @@ def test_backup_current_dir(monkeypatch, tmp_path: Path) -> None:
     assert not (tmp_path / "gorun_2").exists()
 
 
+def test_backup_current_dir_does_not_compress_first(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """gorun_1 (the first backup) is never compressed to a tarball."""
+    (tmp_path / "gorun_1").mkdir()
+    monkeypatch.setattr(pipeline_mod, "barf_if_no_cmd", lambda cmd: None)
+    monkeypatch.setattr(
+        pipeline_mod.subprocess, "check_call", lambda cmd, shell=True: None
+    )
+
+    _backup_current_dir(tmp_path, excludes=[])
+
+    assert (tmp_path / "gorun_1").is_dir()
+    assert not (tmp_path / "gorun_1.tar.gz").exists()
+
+
 # --- dispatch_run guards ----------------------------------------------------
 
 
@@ -212,6 +229,13 @@ def test_dispatch_run_unknown_server(monkeypatch, tmp_path: Path, stub_adapter) 
     assert dispatch_run(_args(), stub_adapter) == 1
 
 
+def test_dispatch_run_no_config_exits(monkeypatch, tmp_path: Path, stub_adapter) -> None:
+    """Missing config and not --local exits 1 before resolving a server."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(pipeline_mod, "load_config", lambda args: None)
+    assert dispatch_run(_args(), stub_adapter) == 1
+
+
 def test_dispatch_run_no_queues(monkeypatch, tmp_path: Path, stub_adapter) -> None:
     """A server with no queues configured exits 1."""
     monkeypatch.chdir(tmp_path)
@@ -230,6 +254,60 @@ def test_dispatch_run_mark_path(monkeypatch, tmp_path: Path, stub_adapter) -> No
     assert dispatch_run(_args(mark=True), stub_adapter) == 0
     assert (tmp_path / "sub").read_text() == "FULL_SCRIPT"
     assert (tmp_path / "gorun_ready").exists()
+
+
+def test_dispatch_run_throttle_loop(monkeypatch, tmp_path: Path, stub_adapter) -> None:
+    """max_slurm_jobs throttles until the running job count drops below it."""
+    monkeypatch.chdir(tmp_path)
+    _setup_pipeline(monkeypatch)
+    counts = iter([3, 0])
+    monkeypatch.setattr(pipeline_mod, "user_job_count", lambda: next(counts))
+    slept: list[int] = []
+    monkeypatch.setattr(pipeline_mod.time, "sleep", slept.append)
+
+    assert dispatch_run(_args(max_slurm_jobs=2, mark=True), stub_adapter) == 0
+    assert slept == [10]
+
+
+def test_dispatch_run_skip_setup_env(monkeypatch, tmp_path: Path, stub_adapter) -> None:
+    """GORUN_SKIP_SETUP=1 skips the adapter setup_commands call."""
+    monkeypatch.chdir(tmp_path)
+    _setup_pipeline(monkeypatch)
+    monkeypatch.setenv("GORUN_SKIP_SETUP", "1")
+
+    assert dispatch_run(_args(mark=True), stub_adapter) == 0
+    assert not any(c[0] == "setup_commands" for c in stub_adapter.calls)
+
+
+def test_dispatch_run_sbatch_submit_success(
+    monkeypatch, tmp_path: Path, stub_adapter
+) -> None:
+    """The non-mark, non-local path submits via sbatch and returns 0."""
+    monkeypatch.chdir(tmp_path)
+    _setup_pipeline(monkeypatch)
+    monkeypatch.setattr(
+        pipeline_mod.subprocess,
+        "run",
+        lambda *a, **k: SimpleNamespace(returncode=0),
+    )
+
+    assert dispatch_run(_args(), stub_adapter) == 0
+    assert (tmp_path / "sub").read_text() == "FULL_SCRIPT"
+
+
+def test_dispatch_run_sbatch_submit_failure(
+    monkeypatch, tmp_path: Path, stub_adapter
+) -> None:
+    """A non-zero sbatch exit status is reported and returns 1."""
+    monkeypatch.chdir(tmp_path)
+    _setup_pipeline(monkeypatch)
+    monkeypatch.setattr(
+        pipeline_mod.subprocess,
+        "run",
+        lambda *a, **k: SimpleNamespace(returncode=1),
+    )
+
+    assert dispatch_run(_args(), stub_adapter) == 1
 
 
 def test_dispatch_run_force_bypasses_running(monkeypatch, tmp_path: Path, stub_adapter) -> None:

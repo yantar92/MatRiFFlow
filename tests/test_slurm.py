@@ -39,10 +39,13 @@ import matrifflow.gorun.slurm as slurm_mod
 
 from matrifflow.gorun.slurm import (
     _executable_find,
+    barf_if_no_cmd,
     clear_slurm_logs,
+    directory_queued_p,
     get_best_script,
     sbatch_estimate_start,
     sbatch_script,
+    user_job_count,
 )
 
 
@@ -101,6 +104,49 @@ def test_executable_find_absent(monkeypatch) -> None:
     assert _executable_find("x") is False
 
 
+# --- barf_if_no_cmd / directory_queued_p / user_job_count -------------------
+
+
+def test_barf_if_no_cmd_raises(monkeypatch) -> None:
+    """A missing command raises FileNotFoundError."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: False)
+    with pytest.raises(FileNotFoundError):
+        barf_if_no_cmd("no-such-command")
+
+
+def test_directory_queued_p_no_squeue(monkeypatch) -> None:
+    """Without squeue, nothing is reported queued."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: False)
+    assert directory_queued_p("/some/path") is False
+
+
+def test_directory_queued_p_squeue(monkeypatch) -> None:
+    """With squeue, queued-p reflects whether the path is in the output."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: True)
+    monkeypatch.setattr(
+        slurm_mod.subprocess,
+        "check_output",
+        lambda cmd, shell=True: b"/queued/path another\n",
+    )
+    assert directory_queued_p("/queued/path") is True
+    assert directory_queued_p("/other/path") is False
+
+
+def test_user_job_count_no_squeue(monkeypatch) -> None:
+    """Without squeue, the job count is zero."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: False)
+    assert user_job_count() == 0
+
+
+def test_user_job_count_squeue(monkeypatch) -> None:
+    """The squeue line count minus the header gives the job count."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: True)
+    monkeypatch.setattr(
+        slurm_mod.subprocess, "check_output", lambda cmd, shell=True: b"3\n"
+    )
+    assert user_job_count() == 2
+
+
 # --- clear_slurm_logs -------------------------------------------------------
 
 
@@ -128,6 +174,16 @@ def test_clear_slurm_logs_no_extra(tmp_path: Path) -> None:
 
     assert not (tmp_path / "slurm-1.out").exists()
     assert (tmp_path / "other.out").exists()
+
+
+def test_clear_slurm_logs_oserror_is_caught(tmp_path: Path) -> None:
+    """A failed removal is reported, not raised.
+
+    The matched name is a directory, so removal raises
+    IsADirectoryError.
+    """
+    (tmp_path / "slurm-1.out").mkdir()
+    clear_slurm_logs(str(tmp_path))
 
 
 # --- sbatch_estimate_start --------------------------------------------------
@@ -238,6 +294,21 @@ def test_sbatch_estimate_start_unexpected_output_raises(monkeypatch, tmp_path: P
         sbatch_estimate_start("x")
 
 
+def test_sbatch_estimate_start_other_error_reraises(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """An unrecognized CalledProcessError is re-raised after a diagnostic print."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(slurm_mod, "barf_if_no_cmd", lambda cmd: None)
+
+    def fake(cmd, **kwargs):
+        raise subprocess.CalledProcessError(1, cmd, output=b"some unrelated failure")
+
+    monkeypatch.setattr(slurm_mod.subprocess, "check_output", fake)
+    with pytest.raises(subprocess.CalledProcessError):
+        sbatch_estimate_start("x")
+
+
 # --- get_best_script --------------------------------------------------------
 
 
@@ -283,5 +354,57 @@ def test_get_best_script_no_sbatch_uses_first(monkeypatch) -> None:
     ]
     script = "echo hi"
     shebang = "#!/usr/bin/env bash"
+    best = get_best_script(alt_args, script, shebang)
+    assert best == sbatch_script(shebang, alt_args[0], script)
+
+
+def test_get_best_script_no_sbatch_single_queue(monkeypatch) -> None:
+    """Without sbatch and a single queue, no warning is printed."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: False)
+    alt_args = [{"partition": "a", "time": "01:00:00"}]
+    script = "echo hi"
+    shebang = "#!/usr/bin/env bash"
+    best = get_best_script(alt_args, script, shebang)
+    assert best == sbatch_script(shebang, alt_args[0], script)
+
+
+def test_get_best_script_skips_none_estimates(monkeypatch) -> None:
+    """Queues whose estimate is None are skipped in favour of a valid one."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: True)
+    script = "echo hi"
+    shebang = "#!/usr/bin/env bash"
+    alt_args = [
+        {"partition": "a", "time": "01:00:00"},
+        {"partition": "b", "time": "00:30:00"},
+    ]
+    monkeypatch.setattr(
+        slurm_mod,
+        "sbatch_estimate_start",
+        lambda s: {
+            sbatch_script(shebang, alt_args[0], script): None,
+            sbatch_script(shebang, alt_args[1], script): (timedelta(0), 8),
+        }[s],
+    )
+    best = get_best_script(alt_args, script, shebang)
+    assert best == sbatch_script(shebang, alt_args[1], script)
+
+
+def test_get_best_script_later_candidate_does_not_win(monkeypatch) -> None:
+    """A candidate finishing later than the current best is not selected."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: True)
+    script = "echo hi"
+    shebang = "#!/usr/bin/env bash"
+    alt_args = [
+        {"partition": "a", "time": "00:30:00"},
+        {"partition": "b", "time": "10:00:00"},
+    ]
+    monkeypatch.setattr(
+        slurm_mod,
+        "sbatch_estimate_start",
+        lambda s: {
+            sbatch_script(shebang, alt_args[0], script): (timedelta(0), 8),
+            sbatch_script(shebang, alt_args[1], script): (timedelta(hours=1), 8),
+        }[s],
+    )
     best = get_best_script(alt_args, script, shebang)
     assert best == sbatch_script(shebang, alt_args[0], script)
