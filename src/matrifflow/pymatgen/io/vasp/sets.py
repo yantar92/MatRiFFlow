@@ -37,6 +37,7 @@ from xml.etree.ElementTree import ParseError
 from pathlib import Path
 from dataclasses import dataclass, fields, field
 import numpy as np
+from typing import Any
 from pymatgen.core import Species, DummySpecies, Structure
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import (
@@ -235,7 +236,7 @@ class MRFVaspInputSet(VaspInputSet):
         return kpoints
 
     @property
-    def incar_updates(self) -> dict:
+    def incar_updates(self) -> dict[str, Any]:
         """INCAR updates derived from the functional choice."""
         incar_updates = {}
         if isinstance(self.functional, str):
