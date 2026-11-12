@@ -572,6 +572,31 @@ def _write_neb_parent(dirpath, *, with_kpoints: bool = True):
     return parent
 
 
+def test_derived_warns_without_vasp_output(tmp_path: Path) -> None:
+    """Input-only sources warn that no VASP result can be inherited."""
+    _write_poscar(tmp_path)
+    with pytest.warns(BadInputSetWarning, match='without VASP output'):
+        MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
+
+
+def test_derived_warns_for_unconverged_run(
+        converged_relax_vasp_dir: Path) -> None:
+    """A run explicitly marked UNCONVERGED warns despite its output."""
+    (converged_relax_vasp_dir / 'UNCONVERGED').touch()
+    with pytest.warns(BadInputSetWarning, match='unconverged VASP run'):
+        MRFDerivedInputSet(directory=converged_relax_vasp_dir, no_potcar=True)
+
+
+def test_derived_does_not_warn_for_converged_run(
+        converged_relax_vasp_dir: Path) -> None:
+    """A converged source does not emit the derivation warnings."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', BadInputSetWarning)
+        MRFDerivedInputSet(directory=converged_relax_vasp_dir, no_potcar=True)
+    assert not any(issubclass(warning.category, BadInputSetWarning)
+                   for warning in caught)
+
+
 def test_derived_reads_structure_from_poscar(tmp_path) -> None:
     """A directory with only a POSCAR yields the parsed structure."""
     _write_poscar(tmp_path)
