@@ -70,14 +70,17 @@ inputs = MRFDerivedInputSet(
     functional='optB88-vdW',
     user_incar_settings={'NSW': 500, 'IBRION': 2},
 )
+if inputs.structure is None:
+    raise ValueError('No structure found in the source VASP directory')
 inputs.structure = inputs.structure.copy()
 inputs.structure.translate_sites([0], [0, 0, 0.02], frac_coords=True)
-inputs.write_input('displaced_calculation')
+inputs.write_input('displaced_calculation', potcar_spec=True)
 ```
 
 `MRFDerivedInputSet` inherits the source settings and writes new
 modified VASP inputs to `displaced_calculation`, and logs settings to
-`MRFVaspInputSet.log`, and `INCAR.toml`.
+`MRFVaspInputSet.log`, and `INCAR.toml`. `potcar_spec=True`
+writes `POTCAR.spec` instead of requiring local pseudopotentials.
 
 ## ATAT structure files
 
