@@ -67,6 +67,8 @@ Given a `host` structure and a `defect` structure, generate every
 symmetry-equivalent placement of an interstitial under the host's
 space group.
 
+This is used by [mrf derive . fill](cli.md#mrf-derive).
+
 ```python
 from matrifflow.pymatgen.transformations.symmetry_clone import SymmetryCloneTransformation
 from pymatgen.core import Structure
