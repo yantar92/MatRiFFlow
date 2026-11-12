@@ -712,6 +712,47 @@ def test_derived_accepts_vaspdir_object(tmp_path) -> None:
     assert inset.structure.reduced_formula == "CsCl"
 
 
+def test_documented_derived_input_workflow(
+        converged_relax_vasp_dir: Path, tmp_path: Path) -> None:
+    """Reading, modifying and writing inputs keeps the source unchanged."""
+    output_path = tmp_path / 'displaced_calculation'
+
+    source = MRFVaspDir(converged_relax_vasp_dir)
+    source_incar = source['INCAR']
+    source_structure = source.final_structure
+    assert source_incar is not None
+    assert source_structure is not None
+    original_incar = (converged_relax_vasp_dir / 'INCAR').read_bytes()
+    original_contcar = (converged_relax_vasp_dir / 'CONTCAR').read_bytes()
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        inputs = MRFDerivedInputSet(
+            directory=source,
+            functional='optB88-vdW',
+            user_incar_settings={'NSW': 500, 'IBRION': 2},
+        )
+        assert inputs.structure is not None
+        inputs.structure = inputs.structure.copy()
+        inputs.structure.translate_sites([0], [0, 0, 0.02], frac_coords=True)
+        inputs.write_input(output_path, potcar_spec=True)
+
+    output_incar = Incar.from_file(output_path / 'INCAR')
+    output_structure = Poscar.from_file(output_path / 'POSCAR').structure
+    assert output_incar['NSW'] == 500
+    assert output_incar['IBRION'] == 2
+    assert output_structure[0].distance(source_structure[0]) > 0
+    assert output_structure[0].distance(source_structure[0]) < 0.1
+    assert source['INCAR'] == source_incar
+    assert source.final_structure == source_structure
+    assert (converged_relax_vasp_dir / 'INCAR').read_bytes() == original_incar
+    assert (converged_relax_vasp_dir / 'CONTCAR').read_bytes() == original_contcar
+    assert (output_path / 'KPOINTS').is_file()
+    assert (output_path / 'POTCAR.spec').is_file()
+    assert (output_path / 'MRFVaspInputSet.log').is_file()
+    assert 'optb88-vdw' in (output_path / 'INCAR.toml').read_text().lower()
+
+
 def test_derived_prev_incar_from_file(tmp_path) -> None:
     """A previous INCAR file sets prev_incar, preserving params vasprun.xml
     omits (e.g. NCORE is not stored in vasprun.xml)."""
