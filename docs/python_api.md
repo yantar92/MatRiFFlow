@@ -47,6 +47,38 @@ returns a float only when the energy is judged usable, otherwise
 The cache is change-aware: it stores a file signature and re-parses only
 directories whose relevant files changed.
 
+## Derive new VASP input
+
+{py:class}`~matrifflow.pymatgen.io.vasp.sets.MRFDerivedInputSet`
+inherits the inputs and final structure from an existing calculation,
+changes them, and writes a *new* directory:
+
+```python
+from matrifflow.pymatgen.io.vasp.sets import MRFDerivedInputSet
+from matrifflow.pymatgen.io.vasp.vaspdir import MRFVaspDir
+
+source = MRFVaspDir('relaxed_calculation')
+print(source['INCAR'])
+print(source.final_structure)
+if source.final_structure:
+    print("Using final structure")
+else:
+    print("Falling back to POSCAR")
+
+inputs = MRFDerivedInputSet(
+    directory=source,
+    functional='optB88-vdW',
+    user_incar_settings={'NSW': 500, 'IBRION': 2},
+)
+inputs.structure = inputs.structure.copy()
+inputs.structure.translate_sites([0], [0, 0, 0.02], frac_coords=True)
+inputs.write_input('displaced_calculation')
+```
+
+`MRFDerivedInputSet` inherits the source settings and writes new
+modified VASP inputs to `displaced_calculation`, and logs settings to
+`MRFVaspInputSet.log`, and `INCAR.toml`.
+
 ## ATAT structure files
 
 ```python
