@@ -251,12 +251,22 @@ Removes all atoms matching the given element symbols.""")
 
     parser_fill = subparsers.add_parser(
         "fill",
-        help="Fill all insertion sites from relaxed configurations",
+        help="Fill symmetry-equivalent insertion sites using host symmetry",
         description="""\
-Generate a structure with all insertion sites filled.
+Fill symmetry-equivalent insertion sites using the bare host's symmetry.
 
-Combines multiple relaxed insertion configurations (from --uniq_sites)
-into a single structure, merging sites within tolerance.""")
+The input_directory argument is the bare host (without inserted atoms),
+provided as a structure file or a VASP output directory.  --uniq_sites
+expects one or more converged VASP output directories, each containing
+that host plus inserted atoms, typically relaxed at a distinct insertion
+site.
+
+Identifies the added atoms relative to the host and applies the host's
+symmetry operations to generate equivalent insertion sites.  Combines
+the resulting configurations into one structure, merging sites within
+--tol.  This does not search for new symmetry-inequivalent sites.
+
+Example: mrf derive host.cif fill --uniq_sites relaxed_Li_1 relaxed_Li_2""")
     fill_add_args(parser_fill)
 
     parser_neb = subparsers.add_parser(
@@ -1038,7 +1048,8 @@ def fill_add_args(parser):
     parser.set_defaults(func_derive=fill)
     parser.add_argument(
         "--uniq_sites",
-        help="VASP output dirs containing equilibrium insert sites",
+        help="Converged VASP output directories containing the host plus "
+        "inserted atoms; added atoms seed symmetry-equivalent insertion sites",
         nargs="+",
         required=True,
         type=str
