@@ -5,9 +5,10 @@ VASP data with persistent caching.
 
 ## VASP directory handling: `MRFVaspDir`
 
-`MRFVaspDir` gives dictionary-like access to a VASP directory with a
-persistent disk cache, so repeated analysis of large trees does not
-re-parse XML or OUTCAR files every time.
+{py:class}`~matrifflow.pymatgen.io.vasp.vaspdir.MRFVaspDir` gives
+dictionary-like access to a VASP directory with a persistent disk cache,
+so repeated analysis of large trees does not re-parse XML or OUTCAR files
+every time.
 
 The cache is optimized for supercomputer file system, avoiding
 excessive IO.
@@ -30,9 +31,18 @@ if vdir.nebp:
         print(f"Image {image_dir.path}: {image_dir.final_energy}")
 ```
 
-`vdir.final_energy_reliable` returns a float only when the energy is
-judged usable, otherwise `"unreliable"` (for example, a volume/shape
-relaxation) or `"unconverged"`.
+The example reads three properties:
+{py:attr}`~matrifflow.pymatgen.io.vasp.vaspdir.MRFVaspDir.final_structure`,
+{py:attr}`~matrifflow.pymatgen.io.vasp.vaspdir.MRFVaspDir.final_energy`,
+and {py:attr}`~matrifflow.pymatgen.io.vasp.vaspdir.MRFVaspDir.converged`.
+NEB image directories come from
+{py:attr}`~matrifflow.pymatgen.io.vasp.vaspdir.MRFVaspDir.nebp` and
+{py:meth}`~matrifflow.pymatgen.io.vasp.vaspdir.MRFVaspDir.neb_dirs`.
+
+{py:attr}`~matrifflow.pymatgen.io.vasp.vaspdir.MRFVaspDir.final_energy_reliable`
+returns a float only when the energy is judged usable, otherwise
+`"unreliable"` (for example, a volume/shape relaxation) or
+`"unconverged"`.
 
 The cache is change-aware: it stores a file signature and re-parses only
 directories whose relevant files changed.
@@ -44,6 +54,10 @@ from matrifflow.pymatgen.core.structure import MRFStructure
 
 s = MRFStructure.from_file("str.out")  # vacancies become "X"
 ```
+
+{py:class}`~matrifflow.pymatgen.core.structure.MRFStructure` is a
+`pymatgen.core.Structure` that also reads and writes ATAT `str.out`
+files.
 
 ## Transformations
 
@@ -60,6 +74,10 @@ transformer = InsertMoleculeTransformation(
 
 inserts = transformer.all_inserts("host_structure.cif")
 ```
+
+{py:class}`~matrifflow.pymatgen.transformations.insert_molecule.InsertMoleculeTransformation`
+documents the grid parameters (`step`, `step_noise`, `anglestep`) and the
+filtering options;
 
 ### Symmetry cloning
 
@@ -80,6 +98,9 @@ trans = SymmetryCloneTransformation(sym_operations=host)
 clones = trans.get_all_clones(host_with_interstitial)
 ```
 
+{py:class}`~matrifflow.pymatgen.transformations.symmetry_clone.SymmetryCloneTransformation`
+takes the symmetry operations of the host.
+
 ## Diffusion analysis
 
 ```python
@@ -95,3 +116,8 @@ pairs = get_neb_pairs(
 for start, end in pairs:
     print(f"Path from {start} to {end}")
 ```
+
+{py:func}`~matrifflow.pymatgen.diffusion.neb.get_neb_pairs` generates and
+filters the candidate pairs; the graph behind the diffusion paths, with
+its distance and barrier helpers, is
+{py:class}`~matrifflow.pymatgen.diffusion.neb.NEB_Graph`.
