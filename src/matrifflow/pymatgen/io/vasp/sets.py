@@ -752,6 +752,19 @@ class MRFDerivedInputSet(MRFVaspInputSet):
 
         super().__post_init__()
 
+        if self._vaspdir.output_mtime() is None:
+            warnings.warn(
+                f'Deriving from {self.directory} without VASP output',
+                BadInputSetWarning,
+                stacklevel=2,
+            )
+        elif not self._vaspdir.converged:
+            warnings.warn(
+                f'Deriving from unconverged VASP run in {self.directory}.',
+                BadInputSetWarning,
+                stacklevel=2,
+            )
+
         if os.path.isfile(os.path.join(self.directory, "KPOINTS")):
             kpoints = Kpoints.from_file(
                 os.path.join(self.directory, "KPOINTS")
