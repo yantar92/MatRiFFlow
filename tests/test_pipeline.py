@@ -63,9 +63,12 @@ def _args(**overrides) -> argparse.Namespace:
     return ns
 
 
-def _setup_pipeline(monkeypatch, config=None, server="testserver"):
-    """Mock every subprocess/config boundary used by dispatch_run."""
-    if config is None:
+_DEFAULT_CONFIG = object()
+
+
+def _setup_pipeline(monkeypatch, config=_DEFAULT_CONFIG, server="testserver"):
+    """Mock dispatch boundaries; explicit config=None models missing config."""
+    if config is _DEFAULT_CONFIG:
         config = {
             "testserver": {
                 "shebang": "#!/usr/bin/env bash",
@@ -230,7 +233,7 @@ def test_dispatch_run_unknown_server(monkeypatch, tmp_path: Path, stub_adapter) 
 def test_dispatch_run_no_config_exits(monkeypatch, tmp_path: Path, stub_adapter) -> None:
     """Missing config and not --local exits 1 before resolving a server."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(pipeline_mod, "load_config", lambda args: None)
+    _setup_pipeline(monkeypatch, config=None)
     assert dispatch_run(_args(), stub_adapter) == 1
 
 
@@ -325,19 +328,9 @@ def test_dispatch_run_local_no_config_falls_back(monkeypatch, tmp_path: Path, st
     monkeypatch.chdir(tmp_path)
     load_config = create_autospec(pipeline_mod.load_config, return_value=None)
     resolve_server = create_autospec(pipeline_mod.resolve_server, return_value="testserver")
+    _setup_pipeline(monkeypatch, config=None)
     monkeypatch.setattr(pipeline_mod, "load_config", load_config)
     monkeypatch.setattr(pipeline_mod, "resolve_server", resolve_server)
-    monkeypatch.setattr(pipeline_mod, "directory_queued_p", lambda path: False)
-    monkeypatch.setattr(pipeline_mod, "user_job_count", lambda: 0)
-    monkeypatch.setattr(
-        pipeline_mod, "clear_slurm_logs", lambda path, extra_logs=None: None
-    )
-    monkeypatch.setattr(
-        pipeline_mod, "get_sbatch_args", lambda *a, **k: {"partition": "cpu"}
-    )
-    monkeypatch.setattr(
-        pipeline_mod, "get_best_script", lambda *a, **k: "FULL_SCRIPT"
-    )
 
     assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
     # Config is read, but with no result the server is never resolved.
@@ -369,19 +362,7 @@ def test_dispatch_run_local_unmatched_server_falls_back(
     """--local with an unmatched host falls back to an empty section."""
     monkeypatch.chdir(tmp_path)
     config = {"some_other_server": {"shebang": "#!/bin/bash -l"}}
-    monkeypatch.setattr(pipeline_mod, "load_config", lambda args: config)
-    monkeypatch.setattr(pipeline_mod, "resolve_server", lambda config: None)
-    monkeypatch.setattr(pipeline_mod, "directory_queued_p", lambda path: False)
-    monkeypatch.setattr(pipeline_mod, "user_job_count", lambda: 0)
-    monkeypatch.setattr(
-        pipeline_mod, "clear_slurm_logs", lambda path, extra_logs=None: None
-    )
-    monkeypatch.setattr(
-        pipeline_mod, "get_sbatch_args", lambda *a, **k: {"partition": "cpu"}
-    )
-    monkeypatch.setattr(
-        pipeline_mod, "get_best_script", lambda *a, **k: "FULL_SCRIPT"
-    )
+    _setup_pipeline(monkeypatch, config=config, server=None)
 
     assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
     stub_adapter.setup_commands.assert_called_once_with({})
@@ -393,19 +374,7 @@ def test_dispatch_run_unknown_server_exits_without_local(
     """An unresolvable server exits 1 when --local is not passed."""
     monkeypatch.chdir(tmp_path)
     config = {"some_other_server": {"shebang": "#!/bin/bash -l"}}
-    monkeypatch.setattr(pipeline_mod, "load_config", lambda args: config)
-    monkeypatch.setattr(pipeline_mod, "resolve_server", lambda config: None)
-    monkeypatch.setattr(pipeline_mod, "directory_queued_p", lambda path: False)
-    monkeypatch.setattr(pipeline_mod, "user_job_count", lambda: 0)
-    monkeypatch.setattr(
-        pipeline_mod, "clear_slurm_logs", lambda path, extra_logs=None: None
-    )
-    monkeypatch.setattr(
-        pipeline_mod, "get_sbatch_args", lambda *a, **k: {"partition": "cpu"}
-    )
-    monkeypatch.setattr(
-        pipeline_mod, "get_best_script", lambda *a, **k: "FULL_SCRIPT"
-    )
+    _setup_pipeline(monkeypatch, config=config, server=None)
 
     assert dispatch_run(_args(local=False, mark=True), stub_adapter) == 1
 
