@@ -470,7 +470,7 @@ class MRFVaspInputSet(VaspInputSet):
             bootstrap=False,
         )
 
-    def write_input(self, output_dir: str | Path, *args, **kwargs) -> None:
+    def write_input(self, output_dir: str | Path, *args: Any, **kwargs: Any) -> None:
         """Write VASP input files to a directory.
 
         In addition to standard pymatgen behaviour, writes an
@@ -983,7 +983,7 @@ class MRFNEBVaspInputSet(MRFDerivedInputSet):
 
                 self.update_images()
 
-    def write_input(self, output_dir, *args, **kwargs) -> None:
+    def write_input(self, output_dir: str | Path, *args: Any, **kwargs: Any) -> None:
         """Write NEB input files to a directory.
 
         In addition to standard behaviour, writes a ``NEB-inputs.txt``
@@ -1004,7 +1004,11 @@ class MRFNEBVaspInputSet(MRFDerivedInputSet):
             f.write(f"00: {self.directory}\n")
             f.write(f"{len(self.images) - 1:02d}: {self.target_directory}\n")
 
-    def update_images(self, beg=None, end=None, **kwargs):
+    def update_images(
+            self,
+            beg: None | Structure = None,
+            end: None | Structure = None,
+            **kwargs: Any):
         """Update NEB images by interpolating between start and end structures.
 
         Args:
