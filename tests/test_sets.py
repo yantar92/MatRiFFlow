@@ -45,8 +45,10 @@ from pymatgen.io.vasp.inputs import Kpoints, PmgVaspPspDirError, Poscar
 from pymatgen.io.vasp.sets import BadInputSetWarning
 from pymatgen.util.testing import MatSciTest
 
+from matrifflow.pymatgen.io.vasp.incar_toml import read_incar_toml
 from matrifflow.pymatgen.io.vasp.inputs import Incar
 from matrifflow.pymatgen.io.vasp.sets import (
+    ENCUT_RELAX_FACTOR,
     MRFDerivedInputSet,
     MRFNEBVaspInputSet,
     MRFStandardVaspInputSet,
@@ -310,6 +312,34 @@ def test_encut_reference_fallback_without_potcar(cscl) -> None:
     assert inset._encut_reference() == (500.0, 550.0)
 
 
+@pytest.mark.parametrize('error_type', [FileNotFoundError, ValueError, KeyError])
+def test_encut_reference_fallback_when_potcar_lookup_fails(
+        cscl, monkeypatch, error_type) -> None:
+    """Unavailable POTCAR data leaves the fallback ENCUT references usable."""
+    def unavailable_potcar(self):
+        raise error_type('POTCAR unavailable')
+
+    monkeypatch.setattr(MRFVaspInputSet, 'potcar', property(unavailable_potcar))
+    inset = MRFStandardVaspInputSet(structure=cscl)
+
+    assert inset._encut_reference() == (500.0, 550.0)
+    assert inset.incar['ENCUT'] == 500.0
+
+
+def test_encut_reference_uses_largest_enmax(cscl, monkeypatch) -> None:
+    """The hardest potential sets both the base and relaxation references."""
+    largest_enmax = 400.0
+    smaller_enmax = 300.0
+    monkeypatch.setattr(
+        MRFVaspInputSet, 'potcar',
+        property(lambda self: [SimpleNamespace(enmax=largest_enmax),
+                               SimpleNamespace(enmax=smaller_enmax)]))
+    inset = MRFStandardVaspInputSet(structure=cscl)
+
+    assert inset._encut_reference() == pytest.approx(
+        (largest_enmax, ENCUT_RELAX_FACTOR * largest_enmax))
+
+
 def test_incar_encut_warning_uses_potcar_threshold(cscl, monkeypatch) -> None:
     """ENCUT is compared against the POTCAR-derived ENMAX reference."""
     fake_potcar = [SimpleNamespace(enmax=262.472)]
@@ -323,6 +353,40 @@ def test_incar_encut_warning_uses_potcar_threshold(cscl, monkeypatch) -> None:
     # above the base but below the relaxation reference for ISIF=3.
     with pytest.warns(BadInputSetWarning, match="volume/shape"):
         inset.incar
+
+
+@pytest.mark.parametrize(
+    ('encut', 'isif', 'warning_text'),
+    [(399.0, 2, 'lower than the reference 400.0'),
+     (400.0, 3, 'too low for volume/shape relaxation'),
+     (519.0, 3, 'too low for volume/shape relaxation'),
+     (400.0, 2, None),
+     (520.0, 3, None)],
+)
+def test_incar_potcar_encut_warning_boundaries(
+        cscl, monkeypatch, encut, isif, warning_text) -> None:
+    """POTCAR-based cutoffs warn below, but not at, the applicable reference."""
+    monkeypatch.setattr(
+        MRFVaspInputSet, 'potcar',
+        property(lambda self: [SimpleNamespace(enmax=400.0)]))
+    inset = MRFStandardVaspInputSet(
+        structure=cscl,
+        user_incar_settings={'ENCUT': encut, 'ISIF': isif, 'NSW': 10})
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', BadInputSetWarning)
+        incar = inset.incar
+
+    assert incar is not None
+    assert incar['ENCUT'] == encut
+    encut_warnings = [str(warning.message) for warning in caught
+                      if issubclass(warning.category, BadInputSetWarning)
+                      and 'ENCUT' in str(warning.message)]
+    if warning_text is None:
+        assert encut_warnings == []
+    else:
+        assert len(encut_warnings) == 1
+        assert warning_text in encut_warnings[0]
 
 
 def test_incar_ncore_and_npar_warns(cscl) -> None:
@@ -667,6 +731,40 @@ def test_derived_concar_fallback_reads_structure(tmp_path) -> None:
         warnings.simplefilter("ignore")
         inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
     assert inset.structure.reduced_formula == "CsCl"
+
+
+@pytest.mark.parametrize('filename', ['POSCAR.gz', 'CONTCAR.gz'])
+def test_derived_reads_compressed_structure(cscl, tmp_path, filename) -> None:
+    """A compressed structure alone is sufficient to derive a new input set."""
+    source_path = tmp_path / filename
+    Poscar(cscl).write_file(source_path)
+    original_bytes = source_path.read_bytes()
+
+    with pytest.warns(BadInputSetWarning, match='without VASP output'):
+        inset = MRFDerivedInputSet(
+            directory=tmp_path, no_potcar=True, sort_structure=False)
+
+    assert inset.structure == cscl
+    assert source_path.read_bytes() == original_bytes
+    assert not (tmp_path / filename.removesuffix('.gz')).exists()
+
+
+@pytest.mark.parametrize('poscar_name', ['POSCAR', 'POSCAR.gz'])
+@pytest.mark.parametrize('contcar_name', ['CONTCAR', 'CONTCAR.gz'])
+def test_derived_prefers_contcar_regardless_of_compression(
+        cscl, tmp_path, poscar_name, contcar_name) -> None:
+    """The relaxed structure wins over the initial one, compressed or not."""
+    relaxed_structure = cscl.copy()
+    relaxed_structure.translate_sites([0], [0.1, 0, 0], frac_coords=True)
+    Poscar(cscl).write_file(tmp_path / poscar_name)
+    Poscar(relaxed_structure).write_file(tmp_path / contcar_name)
+
+    with pytest.warns(BadInputSetWarning, match='without VASP output'):
+        inset = MRFDerivedInputSet(
+            directory=tmp_path, no_potcar=True, sort_structure=False)
+
+    assert inset.structure == relaxed_structure
+    assert inset.structure != cscl
 
 
 def test_derived_poscar_without_elements_falls_back_to_potcar(
@@ -1276,6 +1374,53 @@ def test_write_input_records_metadata_when_not_suppressed(
         inset.write_input(tmp_path)
     assert (tmp_path / "MRFVaspInputSet.log").exists()
     assert "functional" in (tmp_path / "INCAR.toml").read_text()
+
+
+def test_write_incar_toml_metadata_preserves_foreign_settings(
+        cscl, tmp_path) -> None:
+    """Updating owned metadata preserves foreign keys and drops stale potentials."""
+    path = tmp_path / 'INCAR.toml'
+    original_text = '[POTCAR]\nCs = "Cs_stale"\nW = "W_stale"\n' \
+        + '[KPOINTS]\nnote = "keep mesh note"\n' \
+        + '[workflow]\nlabel = "keep workflow"\n'
+    path.write_text(original_text)
+    custom_mapping = {'Cs': 'Cs_custom', 'Cl': 'Cl_custom'}
+    inset = _standard_set(cscl)
+    inset._config_dict['POTCAR'] = custom_mapping.copy()
+
+    inset._write_incar_toml_metadata(tmp_path)
+
+    assert read_incar_toml(path) == {
+        'POTCAR': custom_mapping,
+        'KPOINTS': {'note': 'keep mesh note'},
+        'workflow': {'label': 'keep workflow'},
+    }
+    backup_path = tmp_path / 'INCAR.toml.old'
+    assert backup_path.read_text() == original_text
+
+    updated_bytes = path.read_bytes()
+    inset._write_incar_toml_metadata(tmp_path)
+
+    assert path.read_bytes() == updated_bytes
+    assert backup_path.read_text() == original_text
+
+
+@pytest.mark.parametrize('explicit_mesh', [False, True])
+def test_write_incar_toml_metadata_records_only_density_recipes(
+        cscl, tmp_path, explicit_mesh) -> None:
+    """Custom density recipes are recorded; explicit meshes have no density."""
+    custom_density = 7000
+    kpoints_settings = Kpoints.gamma_automatic((4, 4, 4)) if explicit_mesh \
+        else {'grid_density': custom_density}
+    inset = _standard_set(cscl, user_kpoints_settings=kpoints_settings)
+
+    inset._write_incar_toml_metadata(tmp_path)
+
+    metadata = read_incar_toml(tmp_path / 'INCAR.toml')
+    if explicit_mesh:
+        assert 'KPOINTS' not in metadata
+    else:
+        assert metadata['KPOINTS'] == {'grid_density': custom_density}
 
 
 def test_write_incar_toml_metadata_all_defaults(cscl, tmp_path) -> None:
