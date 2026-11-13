@@ -1066,22 +1066,32 @@ def _neb_endpoints():
     return beg, end
 
 
+def _neb_for_interpolation(monkeypatch, method: str) -> MRFNEBVaspInputSet:
+    """Build a minimal interpolation input set without stored endpoints.
+
+    Bypass directory parsing so tests exercise update_images directly.
+    The patched INCAR requests three intermediate images.
+    """
+    neb = object.__new__(MRFNEBVaspInputSet)
+    neb.method = method
+    neb.fix_cutoff = None
+    neb.frac_tol = 0.5
+    monkeypatch.setattr(
+        MRFDerivedInputSet,
+        'incar',
+        property(lambda self: Incar({'IMAGES': 3, 'IBRION': 1})),
+    )
+    return neb
+
+
 def test_neb_update_images_idpp(tmp_path, monkeypatch) -> None:
     """IDPP interpolation builds len(IMAGES)+2 image input sets."""
     monkeypatch.chdir(tmp_path)  # idpp_interpolate writes idpp.log to CWD
     beg, end = _neb_endpoints()
 
-    neb = object.__new__(MRFNEBVaspInputSet)
+    neb = _neb_for_interpolation(monkeypatch, 'IDPP')
     neb.structure = beg
     neb.target_structure = end
-    neb.method = "IDPP"
-    neb.fix_cutoff = None
-    neb.frac_tol = 0.5
-    monkeypatch.setattr(
-        MRFDerivedInputSet,
-        "incar",
-        property(lambda self: Incar({"IMAGES": 3, "IBRION": 1})),
-    )
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -1096,17 +1106,9 @@ def test_neb_update_images_linear(monkeypatch) -> None:
     """Non-IDPP interpolation applies frac_tol validation and builds images."""
     beg, end = _neb_endpoints()
 
-    neb = object.__new__(MRFNEBVaspInputSet)
+    neb = _neb_for_interpolation(monkeypatch, 'linear')
     neb.structure = beg
     neb.target_structure = end
-    neb.method = "linear"
-    neb.fix_cutoff = None
-    neb.frac_tol = 0.5
-    monkeypatch.setattr(
-        MRFDerivedInputSet,
-        "incar",
-        property(lambda self: Incar({"IMAGES": 3, "IBRION": 1})),
-    )
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -1168,15 +1170,7 @@ def test_neb_update_images_explicit_endpoints(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)  # idpp_interpolate writes idpp.log to CWD
     beg, end = _neb_endpoints()
 
-    neb = object.__new__(MRFNEBVaspInputSet)
-    neb.method = "IDPP"
-    neb.fix_cutoff = None
-    neb.frac_tol = 0.5
-    monkeypatch.setattr(
-        MRFDerivedInputSet,
-        "incar",
-        property(lambda self: Incar({"IMAGES": 3, "IBRION": 1})),
-    )
+    neb = _neb_for_interpolation(monkeypatch, 'IDPP')
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
