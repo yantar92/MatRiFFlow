@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+- `MRFVaspDir.final_energy` skips OSZICAR steps without `E0`, returning
+  the latest recorded ionic energy even when a run ends with empty steps.
+  Previously, it crashed.
+
 ## 2.0.0 - 2026-11-06
 
 ### Renamed to MatRiFFlow

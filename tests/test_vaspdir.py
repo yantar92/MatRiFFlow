@@ -217,6 +217,24 @@ def test_final_energy(converged_vasp_dir) -> None:
     assert isinstance(d.final_energy, float)
 
 
+def test_final_energy_incomplete_oszicar(tmp_path, isolated_lmdb_cache) -> None:
+    """An unfinished OSZICAR returns the latest recorded E0, skipping empty steps."""
+    fixture = Path(__file__).parent / 'fixtures' / 'vasp_incomplete_oszicar' / 'OSZICAR'
+    shutil.copy(fixture, tmp_path / 'OSZICAR')
+    directory = MRFVaspDir(tmp_path)
+    oszicar = directory['OSZICAR']
+    assert oszicar is not None
+    steps = oszicar.ionic_steps.copy()
+    assert steps[-1] == {}
+    assert steps[-2]['E0'] == pytest.approx(-540.35014, rel=0, abs=1e-8)
+    assert steps[0]['E0'] != steps[-2]['E0']
+
+    with pytest.warns(VaspWarning, match='Reading final energy'):
+        assert directory.final_energy == pytest.approx(-540.35014, rel=0, abs=1e-8)
+    assert oszicar.ionic_steps == steps
+    assert directory.final_energy_reliable == 'unconverged'
+
+
 def test_final_energy_outcar_fallback_incomplete_vasprun(tmp_path) -> None:
     """final_energy falls back to OUTCAR when vasprun.xml is unparseable.
 

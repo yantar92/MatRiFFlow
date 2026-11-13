@@ -1005,7 +1005,11 @@ class MRFVaspDir(Mapping, MSONable):
 
     @property
     def final_energy(self) -> float:
-        """Final energy computed in current Vasp outputs."""
+        """Latest recorded E0 from OSZICAR, falling back to vasprun.xml/OUTCAR.
+
+        OSZICAR steps without E0 are skipped, including empty entries
+        in incomplete runs. Returns NaN when no energy is available.
+        """
         return self._memoized('final_energy', self._compute_final_energy)
 
     def _compute_final_energy(self) -> float:
@@ -1016,8 +1020,12 @@ class MRFVaspDir(Mapping, MSONable):
                 source=self.path,
             ))
         if oszicar := self['OSZICAR']:
-            if oszicar.ionic_steps:
-                return oszicar.final_energy
+            # Incomplete runs can leave empty ionic-step entries.
+            # FIXME: report to pymatgen upstream for
+            # Oszicar.final_energy
+            for step in reversed(oszicar.ionic_steps):
+                if 'E0' in step:
+                    return step['E0']
         if run := self['vasprun.xml']:
             return run.final_energy
         if outcar := self['OUTCAR']:
