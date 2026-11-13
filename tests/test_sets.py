@@ -43,7 +43,6 @@ import pytest
 from pymatgen.core import Lattice, Structure
 from pymatgen.io.vasp.inputs import Kpoints, PmgVaspPspDirError, Poscar
 from pymatgen.io.vasp.sets import BadInputSetWarning
-from pymatgen.util.testing import MatSciTest
 
 from matrifflow.pymatgen.io.vasp.incar_toml import read_incar_toml
 from matrifflow.pymatgen.io.vasp.inputs import Incar
@@ -57,12 +56,6 @@ from matrifflow.pymatgen.io.vasp.sets import (
     write_selective_dynamics_summary_maybe,
 )
 from matrifflow.pymatgen.io.vasp.vaspdir import MRFVaspDir
-
-
-@pytest.fixture
-def cscl():
-    """Two-site CsCl structure from pymatgen's curated set."""
-    return MatSciTest().get_structure("CsCl")
 
 
 def _standard_set(structure, **kwargs) -> MRFStandardVaspInputSet:

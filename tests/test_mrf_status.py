@@ -687,16 +687,8 @@ def test_status_running_per_step(tmp_path, monkeypatch) -> None:
 
 def test_status_real_converged_fixture(monkeypatch, converged_vasp_dir) -> None:
     """A genuine converged run reports converged with a summary line."""
-    monkeypatch.setattr(mrf_status, 'slurm_runningp', lambda path: False)
-    console = Console(record=True, width=100)
-    console._force_terminal = False
-    monkeypatch.setattr(mrf_status, 'console', console)
-    args = argparse.Namespace(
-        dir=[str(converged_vasp_dir)], exclude=None, include=None,
-        nowarn=None, problematic=False, skip_converged=False,
-        skip_running=False, fast=False)
-    assert status(args) == 0
-    text = console.export_text()
+    text, code = _real_status(monkeypatch, converged_vasp_dir)
+    assert code == 0
     assert '1 runs: 0 running, 1 converged, 0 unconverged' in text
 
 

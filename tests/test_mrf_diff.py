@@ -146,8 +146,9 @@ def _struct_with_source(source_dir: str) -> _StructureStub:
     return _StructureStub(source_dir)
 
 
-def test_copy_structures_to_relative(monkeypatch, tmp_path: Path) -> None:
-    """A relative source dir is copied under its own name."""
+@pytest.mark.parametrize('absolute', [False, True], ids=['relative', 'absolute'])
+def test_copy_structures_to_source_path(monkeypatch, tmp_path: Path, absolute) -> None:
+    """Relative and absolute source paths are copied under their basename."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "run"
     src.mkdir()
@@ -155,20 +156,8 @@ def test_copy_structures_to_relative(monkeypatch, tmp_path: Path) -> None:
     target = tmp_path / "out"
     target.mkdir()
 
-    _copy_structures_to([_struct_with_source("run")], str(target))
-
-    assert (target / "run" / "INCAR").is_file()
-
-
-def test_copy_structures_to_absolute(tmp_path: Path) -> None:
-    """An absolute source dir is copied under its basename."""
-    src = tmp_path / "run"
-    src.mkdir()
-    (src / "INCAR").write_text("ENCUT = 500\n")
-    target = tmp_path / "out"
-    target.mkdir()
-
-    _copy_structures_to([_struct_with_source(str(src))], str(target))
+    source = str(src) if absolute else 'run'
+    _copy_structures_to([_struct_with_source(source)], str(target))
 
     assert (target / "run" / "INCAR").is_file()
 

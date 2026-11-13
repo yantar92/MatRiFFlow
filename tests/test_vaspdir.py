@@ -832,27 +832,27 @@ def test_output_mtime_neb_max(tmp_path) -> None:
     assert d.output_mtime() == pytest.approx(max(times))
 
 
-def test_converged_neb_all_images_converged(
-        converged_vasp_dir, tmp_path_factory) -> None:
-    """converged is True when all interior NEB images are converged."""
+@pytest.fixture
+def neb_with_converged_image(converged_vasp_dir, tmp_path_factory) -> Path:
+    """A NEB tree with fixed endpoints and one converged interior image."""
     root = tmp_path_factory.mktemp("neb")
     (root / "INCAR").write_text("IMAGES = 1\n")
     for n in (0, 2):  # ends; the interior image is the converged fixture
         (root / f"{n:02d}").mkdir()
     shutil.copytree(converged_vasp_dir, root / "01")
-    d = MRFVaspDir(str(root))
+    return root
+
+
+def test_converged_neb_all_images_converged(neb_with_converged_image) -> None:
+    """converged is True when all interior NEB images are converged."""
+    d = MRFVaspDir(str(neb_with_converged_image))
     assert d.nebp is True
     assert d.converged is True
 
 
-def test_converged_neb_unconverged_image(
-        converged_vasp_dir, tmp_path_factory) -> None:
+def test_converged_neb_unconverged_image(neb_with_converged_image) -> None:
     """converged is False when any interior NEB image is not converged."""
-    root = tmp_path_factory.mktemp("neb")
-    (root / "INCAR").write_text("IMAGES = 1\n")
-    for n in (0, 2):
-        (root / f"{n:02d}").mkdir()
-    shutil.copytree(converged_vasp_dir, root / "01")
+    root = neb_with_converged_image
     (root / "01" / "UNCONVERGED").write_text("")
     d = MRFVaspDir(str(root))
     assert d.converged is False

@@ -46,34 +46,26 @@ def _sublattice() -> Structure:
         [[0, 0, 0], [0.5, 0, 0]])
 
 
-def _scale_lattice(
-        structure: Structure, factor: float, axis: int = 0) -> Structure:
-    """Return a copy of ``structure`` stretched along one lattice axis."""
-    matrix = structure.lattice.matrix.copy()
-    matrix[axis, axis] *= factor
-    return Structure(Lattice(matrix), structure.species, structure.frac_coords)
-
-
 # --- check_volume_distortion -------------------------------------------------
 
 
-def test_check_volume_distortion_accepts_small_strain() -> None:
+def test_check_volume_distortion_accepts_small_strain(scale_lattice) -> None:
     """A small lattice distortion is below the default threshold."""
     sublattice = _sublattice()
-    assert check_volume_distortion(sublattice, _scale_lattice(sublattice, 1.02))
+    assert check_volume_distortion(sublattice, scale_lattice(sublattice, 1.02))
 
 
-def test_check_volume_distortion_rejects_large_strain() -> None:
+def test_check_volume_distortion_rejects_large_strain(scale_lattice) -> None:
     """A large lattice distortion exceeds the default threshold."""
     sublattice = _sublattice()
     assert not check_volume_distortion(
-        sublattice, _scale_lattice(sublattice, 1.30))
+        sublattice, scale_lattice(sublattice, 1.30))
 
 
-def test_check_volume_distortion_threshold_override() -> None:
+def test_check_volume_distortion_threshold_override(scale_lattice) -> None:
     """A custom threshold changes the accept/reject decision."""
     sublattice = _sublattice()
-    deformed = _scale_lattice(sublattice, 1.30)
+    deformed = scale_lattice(sublattice, 1.30)
     assert check_volume_distortion(sublattice, deformed, threshold=0.5)
 
 

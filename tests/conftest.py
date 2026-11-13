@@ -74,6 +74,8 @@ from unittest.mock import Mock, create_autospec
 
 import pytest
 from alive_progress import config_handler
+from pymatgen.core import Lattice, Structure
+from pymatgen.util.testing import MatSciTest
 
 from matrifflow.gorun.adapters.base import SoftwareAdapter
 
@@ -81,6 +83,31 @@ from matrifflow.gorun.adapters.base import SoftwareAdapter
 # many bars in sequence under pytest (non-TTY) intermittently hangs.  The
 # progress bar is purely cosmetic, so disable it globally during tests.
 config_handler.set_global(disable=True)
+
+
+@pytest.fixture
+def cscl() -> Structure:
+    """A fresh two-site CsCl structure from pymatgen's curated set."""
+    return MatSciTest().get_structure('CsCl')
+
+
+@pytest.fixture
+def carbon_lithium() -> Structure:
+    """A fresh carbon framework with one intercalated Li atom."""
+    return Structure(
+        lattice=Lattice.cubic(4.0),
+        species=['C', 'C', 'Li'],
+        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5], [0.25, 0.25, 0.25]])
+
+
+@pytest.fixture
+def scale_lattice():
+    """Return a factory for stretching one axis without modifying the source."""
+    def scale(structure: Structure, factor: float, axis: int = 0) -> Structure:
+        matrix = structure.lattice.matrix.copy()
+        matrix[axis, axis] *= factor
+        return Structure(Lattice(matrix), structure.species, structure.frac_coords)
+    return scale
 
 
 def _materialize_fixture(tmp_path: Path, name: str) -> Path:

@@ -37,7 +37,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from pymatgen.core import DummySpecies, Lattice, Structure
-from pymatgen.util.testing import MatSciTest
 
 import matrifflow.pymatgen.core.structure as structure_module
 from matrifflow.pymatgen.core.structure import (
@@ -62,57 +61,34 @@ from matrifflow.pymatgen.core.structure import (
 )
 
 
-@pytest.fixture
-def cscl() -> Structure:
-    """Two-site CsCl structure from pymatgen's curated set."""
-    return MatSciTest().get_structure("CsCl")
-
-
-def _scale_lattice(
-        structure: Structure, factor: float, axis: int = 0) -> Structure:
-    """Return a copy of ``structure`` stretched along one lattice axis."""
-    matrix = structure.lattice.matrix.copy()
-    matrix[axis, axis] *= factor
-    return Structure(Lattice(matrix), structure.species, structure.frac_coords)
-
-
 # --- framework helpers ------------------------------------------------------
 
 
-def _carbon_lithium() -> Structure:
-    """A carbon framework with one intercalated Li atom."""
-    return Structure(
-        lattice=Lattice.cubic(4.0),
-        species=['C', 'C', 'Li'],
-        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5], [0.25, 0.25, 0.25]],
-    )
-
-
-def test_get_framework_elements_most_common() -> None:
+def test_get_framework_elements_most_common(carbon_lithium) -> None:
     """The framework element is the most common species."""
-    assert get_framework_elements(_carbon_lithium()) == ['C']
+    assert get_framework_elements(carbon_lithium) == ['C']
 
 
-def test_filter_framework_removes_mobile_species() -> None:
+def test_filter_framework_removes_mobile_species(carbon_lithium) -> None:
     """Filtering keeps only the framework elements."""
-    framework = filter_framework(_carbon_lithium(), ['C'])
+    framework = filter_framework(carbon_lithium, ['C'])
     assert len(framework.species) == 2
     assert set(str(s.specie) for s in framework) == {'C'}
 
 
-def test_get_framework_space_group_ignores_mobile_species() -> None:
+def test_get_framework_space_group_ignores_mobile_species(carbon_lithium) -> None:
     """The framework space group excludes the intercalated species.
 
     The C2 framework is body-centred cubic (Im-3m); the Li intercalant
     lowers the full structure to R-3m.
     """
-    assert get_framework_space_group(_carbon_lithium()) == 'Im-3m'
+    assert get_framework_space_group(carbon_lithium) == 'Im-3m'
 
 
-def test_get_framework_space_group_explicit_elements() -> None:
+def test_get_framework_space_group_explicit_elements(carbon_lithium) -> None:
     """An explicit element list overrides the most-common-element default."""
     assert get_framework_space_group(
-        _carbon_lithium(), framework_elements=['Li']) == 'Pm-3m'
+        carbon_lithium, framework_elements=['Li']) == 'Pm-3m'
 
 
 def test_framework_symprec_shared_default() -> None:
@@ -123,9 +99,9 @@ def test_framework_symprec_shared_default() -> None:
 # --- structure_strain -------------------------------------------------------
 
 
-def test_structure_strain_uniaxial(cscl: Structure) -> None:
+def test_structure_strain_uniaxial(cscl: Structure, scale_lattice) -> None:
     """A uniaxial stretch produces a symmetric diagonal strain tensor."""
-    deformed = _scale_lattice(cscl, 1.02)
+    deformed = scale_lattice(cscl, 1.02)
     strain = structure_strain(cscl, deformed)
     assert strain.shape == (3, 3)
     assert np.allclose(strain, strain.T)
@@ -136,6 +112,17 @@ def test_structure_strain_uniaxial(cscl: Structure) -> None:
 def test_structure_strain_identical_is_zero(cscl: Structure) -> None:
     """Identical structures have zero strain."""
     assert np.allclose(structure_strain(cscl, cscl), 0.0)
+
+
+@pytest.fixture
+def unmatched_displacement(cscl, monkeypatch) -> Structure:
+    """A displaced CsCl copy with structure matching forbidden."""
+    def reject_matching(*args, **kwargs):
+        raise AssertionError('get_matched_structure should not be called')
+    monkeypatch.setattr(structure_module, 'get_matched_structure', reject_matching)
+    moved = cscl.copy()
+    moved.translate_sites([0], [0.2, 0, 0], frac_coords=True)
+    return moved
 
 
 # --- structure_distance -----------------------------------------------------
@@ -195,14 +182,9 @@ def test_structure_distance_handles_shuffled_order(cscl: Structure) -> None:
 
 
 def test_structure_distance_match_first_false_skips_matching(
-        cscl: Structure, monkeypatch) -> None:
+        cscl: Structure, unmatched_displacement) -> None:
     """match_first=False computes the distance without calling the matcher."""
-    def _boom(*args, **kwargs):
-        raise AssertionError("get_matched_structure should not be called")
-    monkeypatch.setattr(structure_module, "get_matched_structure", _boom)
-
-    moved = cscl.copy()
-    moved.translate_sites([0], [0.2, 0, 0], frac_coords=True)
+    moved = unmatched_displacement
     assert np.isclose(
         structure_distance(cscl, moved, match_first=False),
         cscl.lattice.a * 0.2,
@@ -231,14 +213,9 @@ def test_structure_diff_zeroes_small_displacements(cscl: Structure) -> None:
 
 
 def test_structure_diff_match_first_false_skips_matching(
-        cscl: Structure, monkeypatch) -> None:
+        cscl: Structure, unmatched_displacement) -> None:
     """match_first=False computes vectors without calling the matcher."""
-    def _boom(*args, **kwargs):
-        raise AssertionError("get_matched_structure should not be called")
-    monkeypatch.setattr(structure_module, "get_matched_structure", _boom)
-
-    moved = cscl.copy()
-    moved.translate_sites([0], [0.2, 0, 0], frac_coords=True)
+    moved = unmatched_displacement
     vectors = structure_diff(cscl, moved, match_first=False)
     assert len(vectors) == len(cscl)
     assert np.isclose(vectors[0][0], cscl.lattice.a * 0.2)
@@ -610,14 +587,9 @@ def test_structure_interpolate2_center_falsy_skips() -> None:
 
 
 def test_structure_interpolate2_match_first_false_skips_matching(
-        cscl: Structure, monkeypatch) -> None:
+        cscl: Structure, unmatched_displacement) -> None:
     """match_first=False interpolates without calling the matcher."""
-    def _boom(*args, **kwargs):
-        raise AssertionError("get_matched_structure should not be called")
-    monkeypatch.setattr(structure_module, "get_matched_structure", _boom)
-
-    moved = cscl.copy()
-    moved.translate_sites([0], [0.2, 0, 0], frac_coords=True)
+    moved = unmatched_displacement
     images = structure_interpolate2(
         cscl, moved, nimages=2, match_first=False, center=0.0)
     assert len(images) == 3

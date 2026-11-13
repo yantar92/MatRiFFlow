@@ -539,8 +539,9 @@ def test_generate_potcar_update_same_symbols(monkeypatch, tmp_path: Path) -> Non
 # --- prepare_vasp_dir -------------------------------------------------------
 
 
-def test_prepare_vasp_dir_calls_sequence(monkeypatch, tmp_path: Path) -> None:
-    """Each preparation step runs in order, with generate_potcar first."""
+@pytest.fixture
+def preparation_calls(monkeypatch) -> tuple[list[str], list[bool]]:
+    """Record preparation steps and forwarded POTCAR keep flags."""
     calls: list[str] = []
     for fn in (
         "check_incar",
@@ -554,6 +555,12 @@ def test_prepare_vasp_dir_calls_sequence(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         clean_mod, "generate_potcar", lambda path, keep: generated.append(keep)
     )
+    return calls, generated
+
+
+def test_prepare_vasp_dir_calls_sequence(preparation_calls, tmp_path: Path) -> None:
+    """Each preparation step runs in the expected order."""
+    calls, generated = preparation_calls
     prepare_vasp_dir(str(tmp_path))
     assert calls == [
         "check_incar",
@@ -565,21 +572,9 @@ def test_prepare_vasp_dir_calls_sequence(monkeypatch, tmp_path: Path) -> None:
     assert generated == [False]
 
 
-def test_prepare_vasp_dir_keep_flags(monkeypatch, tmp_path: Path) -> None:
+def test_prepare_vasp_dir_keep_flags(preparation_calls, tmp_path: Path) -> None:
     """keep_poscar skips contcar_to_poscar; keep_potcar is forwarded."""
-    calls: list[str] = []
-    for fn in (
-        "check_incar",
-        "contcar_to_poscar",
-        "clean_vasp_inputs",
-        "put_vdw_kernel",
-        "clear_vasp_outputs",
-    ):
-        monkeypatch.setattr(clean_mod, fn, lambda path, fn=fn: calls.append(fn))
-    generated = []
-    monkeypatch.setattr(
-        clean_mod, "generate_potcar", lambda path, keep: generated.append(keep)
-    )
+    calls, generated = preparation_calls
     prepare_vasp_dir(str(tmp_path), keep_potcar=True, keep_poscar=True)
     assert "contcar_to_poscar" not in calls
     assert generated == [True]

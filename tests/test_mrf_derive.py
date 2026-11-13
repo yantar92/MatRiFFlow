@@ -682,27 +682,24 @@ def test_derive_empty_output(tmp_path) -> None:
         mrf_derive.derive(args)
 
 
-def test_derive_single_default_prefix(tmp_path, monkeypatch) -> None:
-    """A single inputset with no --output uses <input>.<name>."""
+@pytest.mark.parametrize(
+    ('overrides', 'expected'),
+    [({}, 'run.SCF'),
+     ({'output': 'out'}, 'out'),
+     ({'output_prefix': 'pre_'}, 'pre_SCF'),
+     ({'subdir': 'sub'}, os.path.join('run.SCF', 'sub'))],
+    ids=['default', 'explicit-output', 'prefix', 'subdir'],
+)
+def test_derive_single_output_path(tmp_path, monkeypatch, overrides, expected) -> None:
+    """Output options select the destination of a single derived input set."""
     run = tmp_path / "run"
     run.mkdir()
     monkeypatch.chdir(tmp_path)
     ins = _DeriveInputSet("SCF")
-    args = _derive_args(run, func_derive=lambda a: {"inputsets": [ins]})
+    args = _derive_args(
+        run, func_derive=lambda a: {'inputsets': [ins]}, **overrides)
     assert mrf_derive.derive(args) == 0
-    assert ins.written == "run.SCF"
-
-
-def test_derive_single_explicit_output(tmp_path, monkeypatch) -> None:
-    """A single inputset with --output writes directly there."""
-    run = tmp_path / "run"
-    run.mkdir()
-    monkeypatch.chdir(tmp_path)
-    ins = _DeriveInputSet("SCF")
-    args = _derive_args(run, output="out",
-                        func_derive=lambda a: {"inputsets": [ins]})
-    assert mrf_derive.derive(args) == 0
-    assert ins.written == "out"
+    assert ins.written == expected
 
 
 def test_derive_multiple_output(tmp_path, monkeypatch) -> None:
@@ -719,56 +716,32 @@ def test_derive_multiple_output(tmp_path, monkeypatch) -> None:
     assert ins2.written == os.path.join("out", "run.relax.X")
 
 
-def test_derive_output_prefix(tmp_path, monkeypatch) -> None:
-    """--output-prefix replaces the input-dir-based prefix."""
-    run = tmp_path / "run"
-    run.mkdir()
-    monkeypatch.chdir(tmp_path)
-    ins = _DeriveInputSet("SCF")
-    args = _derive_args(run, output_prefix="pre_",
-                        func_derive=lambda a: {"inputsets": [ins]})
-    assert mrf_derive.derive(args) == 0
-    assert ins.written == "pre_SCF"
-
-
-def test_derive_subdir(tmp_path, monkeypatch) -> None:
-    """--subdir nests the output one level deeper."""
-    run = tmp_path / "run"
-    run.mkdir()
-    monkeypatch.chdir(tmp_path)
-    ins = _DeriveInputSet("SCF")
-    args = _derive_args(run, subdir="sub",
-                        func_derive=lambda a: {"inputsets": [ins]})
-    assert mrf_derive.derive(args) == 0
-    assert ins.written == os.path.join("run.SCF", "sub")
-
-
-def test_derive_overwrite(tmp_path, monkeypatch) -> None:
-    """A non-empty output dir is overwritten (with a warning) by default."""
+@pytest.fixture
+def nonempty_derive_output(tmp_path, monkeypatch):
+    """An input run and occupied output directory for overwrite-policy tests."""
     run = tmp_path / "run"
     run.mkdir()
     out = tmp_path / "out"
     out.mkdir()
     (out / "file").write_text("x")
     monkeypatch.chdir(tmp_path)
-    ins = _DeriveInputSet("SCF")
-    args = _derive_args(run, output="out",
-                        func_derive=lambda a: {"inputsets": [ins]})
+    return run
+
+
+def test_derive_overwrite(nonempty_derive_output) -> None:
+    """A non-empty output dir is overwritten (with a warning) by default."""
+    ins = _DeriveInputSet('SCF')
+    args = _derive_args(nonempty_derive_output, output='out',
+                        func_derive=lambda a: {'inputsets': [ins]})
     with pytest.warns(UserWarning, match="Overwriting"):
         assert mrf_derive.derive(args) == 0
     assert ins.written == "out"
 
 
-def test_derive_skip_non_empty(tmp_path, monkeypatch) -> None:
+def test_derive_skip_non_empty(nonempty_derive_output) -> None:
     """overwrite_output=False skips a non-empty output dir."""
-    run = tmp_path / "run"
-    run.mkdir()
-    out = tmp_path / "out"
-    out.mkdir()
-    (out / "file").write_text("x")
-    monkeypatch.chdir(tmp_path)
     ins = _DeriveInputSet("SCF")
-    args = _derive_args(run, output="out", overwrite_output="False",
+    args = _derive_args(nonempty_derive_output, output="out", overwrite_output="False",
                         func_derive=lambda a: {"inputsets": [ins]})
     with pytest.warns(UserWarning, match="Skipping"):
         assert mrf_derive.derive(args) == 0

@@ -165,15 +165,6 @@ def _single_atom_structure() -> Structure:
     )
 
 
-def _carbon_lithium_structure() -> Structure:
-    """A carbon framework with one intercalated Li atom."""
-    return Structure(
-        lattice=Lattice.cubic(4.0),
-        species=['C', 'C', 'Li'],
-        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5], [0.25, 0.25, 0.25]],
-    )
-
-
 def test_require_structure_none_raises() -> None:
     """A missing structure raises TypeError (caught by read_field)."""
     with pytest.raises(TypeError):
@@ -208,9 +199,9 @@ def test_read_field_missing_structure_is_n_a() -> None:
     assert read_field('space_group', _VaspdirStub()) == 'N/A'
 
 
-def test_read_field_framework_space_group() -> None:
+def test_read_field_framework_space_group(carbon_lithium) -> None:
     """Framework space group ignores the intercalated species."""
-    structure = _carbon_lithium_structure()
+    structure = carbon_lithium
     framework = Structure(
         lattice=Lattice.cubic(4.0),
         species=['C', 'C'],
@@ -342,9 +333,9 @@ def test_add_args_parses_full() -> None:
 ## _read_field_1 -- remaining fields
 
 
-def test_read_field_e_per_atom() -> None:
+def test_read_field_e_per_atom(carbon_lithium) -> None:
     """Energy per atom divides by the final structure atom count."""
-    structure = _carbon_lithium_structure()  # 3 atoms
+    structure = carbon_lithium  # 3 atoms
     vd = _VaspdirStub(
         final_energy=-12.3,
         final_energy_reliable=-12.3,
@@ -353,9 +344,9 @@ def test_read_field_e_per_atom() -> None:
     assert _read_field_1('e_per_atom', vd) == f"{-12.3 / 3:.5f}"
 
 
-def test_read_field_e_per_atom_unreliable_shows_marker() -> None:
+def test_read_field_e_per_atom_unreliable_shows_marker(carbon_lithium) -> None:
     """An unreliable per-atom energy keeps the raw value plus marker."""
-    structure = _carbon_lithium_structure()  # 3 atoms
+    structure = carbon_lithium  # 3 atoms
     vd = _VaspdirStub(
         final_energy=-12.3,
         final_energy_reliable='unreliable',
