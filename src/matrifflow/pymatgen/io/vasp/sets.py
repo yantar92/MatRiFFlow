@@ -405,13 +405,16 @@ class MRFVaspInputSet(VaspInputSet):
         recipe (an explicit grid or an inherited KPOINTS file has no
         single density value to record).
         """
+        # FIXME: pymatgen annotates user_kpoints_settings and kpoints_updates
+        # as dict, but its kpoints getter also accepts Kpoints for both.
+        # Keep the runtime checks until the upstream annotations are corrected.
         user = self.user_kpoints_settings
-        if isinstance(user, dict) and 'grid_density' in user:
+        if isinstance(user, dict) and 'grid_density' in user:  # pyright: ignore[reportUnnecessaryIsInstance]
             return user['grid_density']
         if isinstance(user, Kpoints):
             return None
         updates = self.kpoints_updates
-        if isinstance(updates, dict) and 'grid_density' in updates:
+        if isinstance(updates, dict) and 'grid_density' in updates:  # pyright: ignore[reportUnnecessaryIsInstance]
             return updates['grid_density']
         if isinstance(updates, Kpoints):
             return None
