@@ -203,6 +203,7 @@ class Vasprun(pmgVasprun):
         energy reached in earlier ionic steps.  When the final energy
         is higher than the best intermediate energy by more than
         *tolerance* per atom, records an ``energy_increase`` warning.
+        Missing or nonnumeric energy values leave the history unchecked.
 
         Args:
             tolerance: Energy increase per atom (eV/atom) that triggers
@@ -216,7 +217,8 @@ class Vasprun(pmgVasprun):
         if tolerance is None:
             tolerance = self.ENERGY_INCREASE_TOLERANCE
         try:
-            energies = np.array([step['e_0_energy'] for step in self.ionic_steps])
+            energies = np.array(
+                [step['e_0_energy'] for step in self.ionic_steps], dtype=float)
         except (KeyError, TypeError, ValueError):
             return True
         if len(energies) < 2:

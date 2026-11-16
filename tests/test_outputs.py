@@ -374,7 +374,9 @@ def test_check_energy_increase_normalizes_by_atom_count(n_atoms) -> None:
 
 @pytest.mark.parametrize(
     'ionic_steps',
-    [[], [{'e_0_energy': -2.0}], [{}], [None]])
+    [[], [{'e_0_energy': -2.0}], [{}], [None],
+     [{'e_0_energy': 'invalid'}, {'e_0_energy': -1.0}],
+     [{'e_0_energy': -2.0}, {'e_0_energy': 'invalid'}]])
 def test_check_energy_increase_skips_insufficient_or_invalid_data(ionic_steps) -> None:
     """Incomplete or unparseable energy histories do not produce a diagnosis."""
     run = _diagnostic_run()
