@@ -40,6 +40,8 @@ import warnings
 import numpy as np
 import pytest
 
+from pymatgen.core import Lattice, Structure
+
 from matrifflow.pymatgen.io.vasp.diagnostics import VaspWarning
 from matrifflow.pymatgen.io.vasp.outputs import (
     Outcar,
@@ -252,6 +254,138 @@ def test_check_energy_increase_tolerates_noise() -> None:
     ]
     assert run.check_energy_increase(tolerance=1e-3) is True
     assert getattr(run, "_warnings", None) is None
+
+
+## Vasprun accuracy diagnostics
+
+
+def _diagnostic_run() -> Vasprun:
+    """Build a run for diagnostic checks without invoking the XML parser."""
+    run = Vasprun.__new__(Vasprun)
+    run.filename = 'vasprun.xml'
+    run.initial_structure = Structure(
+        Lattice.cubic(5), ['Li', 'Na'], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    run.final_structure = run.initial_structure.copy()
+    return run
+
+
+@pytest.mark.parametrize(
+    ('pressure', 'expected'), [(2.0, True), (3.0, True), (4.0, False)])
+def test_check_stress_threshold(pressure, expected) -> None:
+    """Hydrostatic pressure uses the trace and accepts the threshold itself."""
+    run = _diagnostic_run()
+    # Unequal diagonal terms and large shear distinguish trace from max stress.
+    run.ionic_steps = [{'stress': [
+        [pressure - 1, 100, 0], [100, pressure, 0], [0, 0, pressure + 1]]}]
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', VaspWarning)
+        assert run.check_stress() is expected
+
+    if expected:
+        assert caught == []
+        assert getattr(run, '_warnings', None) is None
+    else:
+        record = run._warnings['stress_convergence']
+        assert record.metadata == {'hydrostatic_pressure': pressure}
+        assert record.source == run.filename
+        assert len(caught) == 1
+        assert issubclass(caught[0].category, VaspWarning)
+
+
+@pytest.mark.parametrize(
+    ('forces', 'expected'),
+    [([[0, 0, 0], [0, 0, 0]], True),
+     ([[0.05, 0, 0], [0, 0, 0]], True),
+     ([[0.04, 0.04, 0], [0, 0, 0]], False),
+     ([[0, 0, 0], [0, -0.06, 0]], False)])
+def test_check_forces_uses_largest_vector_norm(forces, expected) -> None:
+    """The largest atom-wise norm, not the largest component, sets the result."""
+    run = _diagnostic_run()
+    run.ionic_steps = [{'forces': forces}]
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', VaspWarning)
+        assert run.check_forces() is expected
+
+    if expected:
+        assert caught == []
+        assert getattr(run, '_warnings', None) is None
+    else:
+        record = run._warnings['force_convergence']
+        assert record.metadata['max_force'] == pytest.approx(
+            max(np.linalg.norm(force) for force in forces))
+        assert record.metadata['threshold'] == 0.05
+        assert record.source == run.filename
+        assert len(caught) == 1
+        assert issubclass(caught[0].category, VaspWarning)
+
+
+@pytest.mark.parametrize(
+    ('free_force', 'expected'), [(0.03, True), (0.06, False)])
+def test_check_forces_respects_selective_dynamics(free_force, expected) -> None:
+    """Fixed directions and fully fixed atoms do not enter the force norm."""
+    run = _diagnostic_run()
+    run.final_structure.add_site_property(
+        'selective_dynamics', [[True, False, True], [False, False, False]])
+    run.ionic_steps = [{'forces': [[free_force, 100, 0], [100, 100, 100]]}]
+    original_properties = run.final_structure.as_dict()
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', VaspWarning)
+        assert run.check_forces() is expected
+
+    assert run.final_structure.as_dict() == original_properties
+    if expected:
+        assert caught == []
+        assert getattr(run, '_warnings', None) is None
+    else:
+        assert run._warnings['force_convergence'].metadata == {
+            'max_force': pytest.approx(free_force), 'threshold': 0.05}
+        assert len(caught) == 1
+
+
+@pytest.mark.parametrize('n_atoms', [1, 4])
+def test_check_energy_increase_normalizes_by_atom_count(n_atoms) -> None:
+    """The same total-energy increase can pass for a larger structure."""
+    run = _diagnostic_run()
+    run.initial_structure = run.initial_structure[:1] * n_atoms
+    run.ionic_steps = [{'e_0_energy': -2.0}, {'e_0_energy': -1.75}]
+    tolerance = 0.125
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', VaspWarning)
+        result = run.check_energy_increase(tolerance=tolerance)
+
+    assert result is (n_atoms == 4)
+    if n_atoms == 1:
+        assert len(caught) == 1
+        assert run._warnings['energy_increase'].metadata == {
+            'final_energy': -1.75,
+            'min_intermediate_energy': -2.0,
+            'energy_increase': 0.25,
+            'energy_increase_per_atom': 0.25,
+            'n_atoms': 1,
+        }
+    else:
+        assert caught == []
+        assert getattr(run, '_warnings', None) is None
+
+
+@pytest.mark.parametrize(
+    'ionic_steps',
+    [[], [{'e_0_energy': -2.0}], [{}], [None]])
+def test_check_energy_increase_skips_insufficient_or_invalid_data(ionic_steps) -> None:
+    """Incomplete or unparseable energy histories do not produce a diagnosis."""
+    run = _diagnostic_run()
+    run.ionic_steps = ionic_steps
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', VaspWarning)
+        assert run.check_energy_increase() is True
+
+    assert caught == []
+    assert getattr(run, '_warnings', None) is None
 
 
 # --- fixture-gated tests ----------------------------------------------------
