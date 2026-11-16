@@ -4,9 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-- `MRFVaspDir.final_energy` skips OSZICAR steps without `E0`, returning
-  the latest recorded ionic energy even when a run ends with empty steps.
-  Previously, it crashed.
+### Changed
+
+-   `MRFVaspDir.final_energy` now prefers the latest recorded `E0` from
+    OSZICAR, falling back to `vasprun.xml` and then OUTCAR when OSZICAR
+    has no energy. Reading energy from an unconverged run records a
+    warning regardless of the energy source.
+-   `MRFDerivedInputSet` emits a `BadInputSetWarning` when deriving from
+    a directory without VASP output or from an unconverged run.
+
+### Documentation
+
+-   Installation instructions now use `pip install matrifflow` from PyPI.
+-   The Python API guide includes a derived-input example and links to
+    the API reference.
 
 ## 2.0.0 - 2026-11-06
 
