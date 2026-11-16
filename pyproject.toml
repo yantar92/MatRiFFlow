@@ -102,7 +102,7 @@ source = ["matrifflow"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -m 'not heavy' --cov=matrifflow --cov-report=term-missing"
+addopts = "-ra -m 'not heavy' --cov=matrifflow --cov-report=term-missing:skip-covered"
 pythonpath = ["src"]
 filterwarnings = [
     # Upstream warnings we cannot fix; harmless in tests.
