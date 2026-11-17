@@ -681,7 +681,7 @@ class MRFDerivedInputSet(MRFVaspInputSet):
                 }
                 # Re-use the user-specified constructor arguments for the
                 # image sub-sets, overriding the directory/image/force flags.
-                params = {
+                params: dict[str, Any] = {
                     f.name: kwargs.get(f.name, getattr(self, f.name))
                     for f in fields(self.__class__)
                     if f.init and f.name != 'structure'
@@ -815,7 +815,7 @@ class MRFDerivedInputSet(MRFVaspInputSet):
             if candidate.is_file():
                 potcar_path = candidate
                 break
-        if potcar_path is not None and self.poscar is not None:
+        if potcar_path is not None:
             # Override defaults with POTCAR data
             # We still want to transfer the file explicitly to
             # make sure that any non-standard POTCARS are not
@@ -1067,7 +1067,7 @@ class MRFNEBVaspInputSet(MRFDerivedInputSet):
             inputset.structure = image
             self.images.append(inputset)
 
-    def _fix_atoms_maybe(self, images):
+    def _fix_atoms_maybe(self, images: list[Structure]):
         """Fix atoms further away than self.fix_cutoff from moving atoms.
         Fixing is done by setting selective dynamics for each image in
         IMAGES.  Modify IMAGES in place.
