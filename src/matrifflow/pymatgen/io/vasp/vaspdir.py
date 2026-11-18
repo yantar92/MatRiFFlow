@@ -355,7 +355,7 @@ class MRFVaspDir(Mapping, MSONable):
             return _MISSING
 
     @classmethod
-    def _lmdb_set(cls, key: str, data: dict[str, object]) -> bool:
+    def _lmdb_set(cls, key: str, data: dict[str, Any]) -> bool:
         """Write a single entry with metadata tracking.
 
         On MDB_MAP_FULL, evicts oldest entries and retries once.
@@ -363,7 +363,7 @@ class MRFVaspDir(Mapping, MSONable):
         return cls._lmdb_set_many({key: data})
 
     @classmethod
-    def _lmdb_get_meta_all(cls, txn) -> dict[str, dict[str, object]]:
+    def _lmdb_get_meta_all(cls, txn) -> dict[str, dict[str, Any]]:
         """Return all metadata as {key: meta_dict}.
 
         Must be called inside an active LMDB transaction.
@@ -419,7 +419,7 @@ class MRFVaspDir(Mapping, MSONable):
         return freed
 
     @classmethod
-    def _lmdb_set_many(cls, items: dict[str, object]) -> bool:
+    def _lmdb_set_many(cls, items: dict[str, Any]) -> bool:
         """Write entries with metadata, evicting on MDB_MAP_FULL.
 
         Pre-serializes values to avoid double pickling.  On map-full
