@@ -42,6 +42,7 @@ import signal
 import time
 import warnings
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, call
 
 import numpy as np
@@ -253,6 +254,58 @@ def test_final_energy_outcar_fallback_incomplete_vasprun(tmp_path) -> None:
         assert d.final_energy == pytest.approx(-1.23)
 
 
+@pytest.mark.parametrize('ionic_steps', [[], [{}], [{'mag': 1.0}, {}]])
+@pytest.mark.parametrize('use_vasprun', [True, False])
+def test_final_energy_skips_oszicar_without_energy(
+        tmp_path, isolated_lmdb_cache, ionic_steps, use_vasprun) -> None:
+    """An OSZICAR without E0 falls through to XML, then OUTCAR."""
+    directory = MRFVaspDir(tmp_path)
+    directory.refresh()
+    directory._parsed_files = {
+        'OSZICAR': SimpleNamespace(ionic_steps=ionic_steps),
+        'vasprun.xml': SimpleNamespace(final_energy=-2.5) if use_vasprun else None,
+        'OUTCAR': _FakeOutcar(final_energy=-1.25),
+    }
+    # Bypass convergence parsing to isolate the energy-source decision.
+    (tmp_path / 'UNCONVERGED').touch()
+    with pytest.warns(VaspWarning, match='Reading final energy'):
+        assert directory.final_energy == pytest.approx(-2.5 if use_vasprun else -1.25)
+    assert directory._parsed_files['OSZICAR'].ionic_steps == ionic_steps
+
+
+@pytest.mark.parametrize('energy', [None, 'unavailable', 0])
+def test_final_energy_invalid_outcar_records_warning(
+        tmp_path, isolated_lmdb_cache, energy) -> None:
+    """A non-float OUTCAR energy becomes NaN with a structured diagnostic."""
+    (tmp_path / 'UNCONVERGED').touch()
+    directory = MRFVaspDir(tmp_path)
+    directory.refresh()
+    directory._parsed_files = {'OUTCAR': SimpleNamespace(final_energy=energy)}
+    with pytest.warns(VaspWarning) as emitted:
+        assert np.isnan(directory.final_energy)
+    assert any('Problems reading final energy' in str(item.message) for item in emitted)
+    assert directory.warnings.has('unparseable_energy')
+    with warnings.catch_warnings(record=True) as repeated:
+        warnings.simplefilter('always', VaspWarning)
+        assert np.isnan(directory.final_energy)
+    assert repeated == []
+
+
+def test_final_energy_missing_returns_nan(tmp_path, isolated_lmdb_cache) -> None:
+    """No energy source yields NaN."""
+    directory = MRFVaspDir(tmp_path)
+    with pytest.warns(VaspWarning, match='Reading final energy'):
+        assert np.isnan(directory.final_energy)
+    assert not directory.warnings.has('unparseable_energy')
+
+
+def test_initial_structure_vasprun_fallback(converged_vasp_dir) -> None:
+    """Without POSCAR, the initial geometry comes from vasprun.xml."""
+    (converged_vasp_dir / 'POSCAR').unlink()
+    directory = MRFVaspDir(converged_vasp_dir)
+    assert directory.initial_structure == directory['vasprun.xml'].initial_structure
+
+
 def test_max_force_below_ediffg(converged_relax_vasp_dir) -> None:
     """Converged means max force below |EDIFFG|, not necessarily zero.
 
@@ -294,6 +347,46 @@ def test_max_force_outcar_fallback_when_vasprun_forces_missing(tmp_path) -> None
         "OUTCAR": _FakeOutcar([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0]]),
     }
     assert d.max_force() == pytest.approx(10.0)
+
+
+@pytest.mark.parametrize('ionic_steps', [None, []])
+def test_max_force_outcar_fallback_without_ionic_steps(
+        tmp_path, isolated_lmdb_cache, ionic_steps) -> None:
+    """Missing or empty XML ionic steps do not hide usable OUTCAR forces."""
+    directory = MRFVaspDir(tmp_path)
+    directory.refresh()
+    directory._parsed_files = {
+        'vasprun.xml': SimpleNamespace(ionic_steps=ionic_steps),
+        'OUTCAR': _FakeOutcar([[3.0, 4.0, 0.0]]),
+    }
+    assert directory.max_force() == pytest.approx(5.0)
+
+
+def test_max_force_partial_constraints_from_contcar(
+        tmp_path, isolated_lmdb_cache) -> None:
+    """CONTCAR constraints mask components, not entire partially fixed atoms."""
+    structure = Structure(
+        Lattice.cubic(10.0), ['Li', 'Na'], [[0, 0, 0], [0.5, 0.5, 0.5]],
+        site_properties={'selective_dynamics': [[True, False, True], [False] * 3]})
+    Poscar(structure).write_file(tmp_path / 'CONTCAR')
+    directory = MRFVaspDir(tmp_path)
+    directory.refresh()
+    directory._parsed_files['OUTCAR'] = _FakeOutcar(
+        [[3.0, 12.0, 4.0], [20.0, 0.0, 0.0]])
+    assert directory.max_force() == pytest.approx(5.0)
+    assert directory.max_force(include_constrained=True) == pytest.approx(20.0)
+    assert directory.max_force() == pytest.approx(5.0)
+
+
+@pytest.mark.parametrize('forces', [None, []])
+def test_max_force_unavailable_forces(
+        tmp_path, isolated_lmdb_cache, forces) -> None:
+    """Absent or empty OUTCAR forces produce None in either constraint mode."""
+    directory = MRFVaspDir(tmp_path)
+    directory.refresh()
+    directory._parsed_files = {'OUTCAR': _FakeOutcar(forces)}
+    assert directory.max_force() is None
+    assert directory.max_force(include_constrained=True) is None
 
 
 def test_energy_accuracy_warning(converged_relax_vasp_dir) -> None:
