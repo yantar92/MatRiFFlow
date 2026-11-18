@@ -40,7 +40,7 @@ import sys
 import threading
 import atexit
 from pathlib import Path
-from typing import cast, Collection
+from typing import cast, Collection, Any
 from collections.abc import Mapping
 import lmdb
 import numpy as np
@@ -355,7 +355,7 @@ class MRFVaspDir(Mapping, MSONable):
             return _MISSING
 
     @classmethod
-    def _lmdb_set(cls, key: str, data: dict) -> bool:
+    def _lmdb_set(cls, key: str, data: dict[str, object]) -> bool:
         """Write a single entry with metadata tracking.
 
         On MDB_MAP_FULL, evicts oldest entries and retries once.
@@ -363,7 +363,7 @@ class MRFVaspDir(Mapping, MSONable):
         return cls._lmdb_set_many({key: data})
 
     @classmethod
-    def _lmdb_get_meta_all(cls, txn) -> dict[str, dict]:
+    def _lmdb_get_meta_all(cls, txn) -> dict[str, dict[str, object]]:
         """Return all metadata as {key: meta_dict}.
 
         Must be called inside an active LMDB transaction.
@@ -524,7 +524,7 @@ class MRFVaspDir(Mapping, MSONable):
         self._prev_vaspdirs: list['MRFVaspDir'] | None = None  # reset() redoes it.
         self._neb_vaspdirs: list['MRFVaspDir'] | None = None  # reset() redoes it.
         self._hash: str | None = None  # reset() redoes it.
-        self._summary: dict | None = None  # reset() redoes it.
+        self._summary: dict[str, Any] | None = None  # reset() redoes it.
         self._index_valid: bool = False  # reset() redoes it.
         if exclude_patterns is None:
             self._exclude_patterns = self.EXCLUDE_PATTERNS
@@ -1409,7 +1409,7 @@ class MRFVaspDir(Mapping, MSONable):
             return 'IMAGES' in incar
         return False
 
-    def neb_dirs(self, include_ends=True) -> list['MRFVaspDir'] | None:
+    def neb_dirs(self, include_ends: bool = True) -> list['MRFVaspDir'] | None:
         """List of NEB image subdirectories.
 
         Args:

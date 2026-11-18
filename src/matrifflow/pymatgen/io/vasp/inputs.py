@@ -27,11 +27,12 @@
 
 """This module implements MRF group-specific extensions to pymatgen.io.vasp.inputs module."""
 
+from __future__ import annotations
+
 import os
 from monty.serialization import loadfn
 from pymatgen.io.vasp.inputs import Incar as pmgIncar
 from matrifflow.common import groupby_cmp
-
 
 MODULE_DIR = os.path.dirname(__file__)
 
@@ -43,7 +44,7 @@ INCAR_GROUP_IGNORE_FIELDS = ['SYSTEM', 'NELM', 'NELMIN', 'ALGO', 'SYMPREC', 'NCO
 
 # We copy this over from pymatgen.io.vasp.sets because we need our own
 # MODULE_DIR
-def _load_yaml_config(fname):
+def _load_yaml_config(fname: str):
     config = loadfn(f"{MODULE_DIR}/{fname}.yaml")
     if "PARENT" in config:
         parent_config = _load_yaml_config(config["PARENT"])
@@ -167,7 +168,7 @@ class Incar(pmgIncar):
         raise ValueError(f"Unknown setup: {setup}")
 
     @staticmethod
-    def group_incars(incars, ignore_fields=None):
+    def group_incars(incars: list[Incar], ignore_fields: list[str] | None = None):
         """Group similar INCARs together.
 
         Differences in ``ignore_fields`` are not considered when
@@ -186,7 +187,7 @@ class Incar(pmgIncar):
         if ignore_fields is None:
             ignore_fields = list(INCAR_GROUP_IGNORE_FIELDS)
 
-        def _incar_eq(incar1, incar2):
+        def _incar_eq(incar1: Incar, incar2: Incar):
             """Return True when INCAR1 is equal to INCAR2.
             ignore_fileds fields are ignored.
             """
@@ -203,7 +204,7 @@ class Incar(pmgIncar):
             #     diff_fields.pop(f, None)
             return len(diff_fields) == 0
 
-        def _incar_name(incar):
+        def _incar_name(incar: Incar):
             """Get INCAR name.
             Assume that name is stored in SYSTEM parameter.
             """

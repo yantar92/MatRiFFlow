@@ -46,7 +46,7 @@ remains as a side channel so existing notification timing is preserved.
 import os
 import warnings
 from dataclasses import dataclass, field
-from typing import Iterator
+from typing import Iterator, Any
 
 from monty.json import MSONable
 
@@ -80,7 +80,7 @@ class VaspWarningRecord(MSONable):
     tips: list[str] = field(default_factory=list)
     count: int = 1
     source: str | None = None
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[Any, Any] = field(default_factory=dict)
 
     def merge(self, other: "VaspWarningRecord") -> "VaspWarningRecord":
         """Combine ``other`` into this record.
@@ -100,7 +100,7 @@ class VaspWarningRecord(MSONable):
             metadata={**self.metadata, **other.metadata},
         )
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "@module": type(self).__module__,
             "@class": type(self).__name__,
@@ -113,7 +113,7 @@ class VaspWarningRecord(MSONable):
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "VaspWarningRecord":
+    def from_dict(cls, d: dict[str, Any]) -> "VaspWarningRecord":
         d = dict(d)
         d.pop("@module", None)
         d.pop("@class", None)
@@ -210,7 +210,7 @@ class VaspWarnings(MSONable):
         """
         return (type(self), (list(self._records.values()),))
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "@module": type(self).__module__,
             "@class": type(self).__name__,
@@ -218,7 +218,7 @@ class VaspWarnings(MSONable):
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "VaspWarnings":
+    def from_dict(cls, d: dict[str, Any]) -> "VaspWarnings":
         return cls([
             VaspWarningRecord.from_dict(rd) for rd in d["records"]
         ])

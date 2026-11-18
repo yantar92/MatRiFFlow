@@ -31,6 +31,7 @@ import warnings
 import logging
 import re
 import os
+from typing import Any
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -149,7 +150,7 @@ class Vasprun(pmgVasprun):
             return False
         return True
 
-    def check_forces(self, threshold=0.05) -> bool:
+    def check_forces(self, threshold: float = 0.05) -> bool:
         """Check residual forces, respecting selective dynamics.
 
         Only force components in unconstrained directions are
@@ -440,7 +441,7 @@ class VasplogMixin:
     VASP_LOG_FILES = [r'slurm.+', r'stdout', r'OUTCAR', r'vasp.out']
 
     @staticmethod
-    def _dedup_lines(raw_lines):
+    def _dedup_lines(raw_lines: list[str]):
         """Strip and deduplicate raw log lines into an index.
 
         Args:
@@ -713,7 +714,7 @@ class Outcar(VasplogMixin, pmgOutcar):
         """Path to the OUTCAR file (uniform with :class:`Vasplog`)."""
         return Path(self.filename)
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """MSONable dict."""
         dct = super().as_dict()
         for key, value in vars(self).items():
