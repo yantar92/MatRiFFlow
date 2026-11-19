@@ -126,19 +126,30 @@ class GpuAdapter:
     # Directory inspection
     # ------------------------------------------------------------------
 
+    def _input_names(self) -> set[str]:
+        """Return the file names gorun treats as input for this adapter."""
+        if self._script_name:
+            return {self._script_name}
+        return {"RUNFILE.sh", "RUNFILE.py"}
+
     def is_valid_input(self, path: Path) -> bool:
         """True when the configured script or RUNFILE.sh/py exists."""
-        if self._script_name:
-            return (path / self._script_name).is_file()
-        return (path / "RUNFILE.sh").is_file() or (path / "RUNFILE.py").is_file()
+        return any((path / name).is_file() for name in self._input_names())
 
     def is_converged(self, path: Path) -> bool:
         """Must be overridden.  Returns ``False`` by default."""
         return False
 
     def has_previous_output(self, path: Path) -> bool:
-        """Must be overridden.  Returns ``False`` by default."""
-        return False
+        """True when the directory contains anything besides the input script.
+
+        The generic GPU adapter has no output manifest, so any entry that
+        is not one of the input names is treated as a previous run's
+        artifact.  This includes directories, hidden files, ``gorun_N``
+        backups, ``sub``, and ``gorun_ready``.
+        """
+        input_names = self._input_names()
+        return any(entry.name not in input_names for entry in path.iterdir())
 
     # ------------------------------------------------------------------
     # Preparation

@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+-   `gorun gpu` now backs up the working directory before a new run.
+    Any entry other than the input script (`RUNFILE.sh`/`RUNFILE.py`,
+    or the `--script-name` file) counts as previous output.
+
 ### Changed
 
 -   `MRFVaspDir.final_energy` now prefers the latest recorded `E0` from
