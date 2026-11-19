@@ -1720,9 +1720,15 @@ def voltage(args):
     print(f"Using {working_ion_entry.composition.reduced_formula} as working ion reference "
           f"(energy={working_ion_entry.energy_per_atom:.4f} eV/atom)")
 
-    # Create insertion electrode
+    # Create insertion electrode.  A pure working-ion entry has no host
+    # framework, so pymatgen cannot pair it with the host entries.  The
+    # working-ion entry is only the electrochemical reference.
+    framework_entries = [
+        e for e in entries
+        if not (e.composition.is_element
+                and e.composition.elements[0] == args.ion)]
     electrode = InsertionElectrode.from_entries(
-        entries,
+        framework_entries,
         working_ion_entry=working_ion_entry,
         strip_structures=False
     )
