@@ -2,7 +2,7 @@
 athena = ['login01.athena.cyfronet.pl']
 ares   = ['login01.ares.cyfronet.pl']
 helios = ['login01.helios.cyfronet.pl']
-lumi = ['uan01']
+lumi = ['lumi', 'uan01', 'uan02', 'uan03', 'uan04']
 
 [athena]
 queues = ['plgrid-gpu-a100']
@@ -117,7 +117,7 @@ partition = 'plgrid-long'
 # https://docs.lumi-supercomputer.eu/runjobs/scheduled-jobs/partitions/
 [lumi]
 queues = ['standard', 'small']
-VASP-setup = "export EBU_USER_PREFIX=/projappl/project_465001654/dist/EasyBuild\nmodule load LUMI/24.03 partition/C PrgEnv-gnu cray-fftw/3.3.10.7 OpenBLAS/0.3.24-cpeGNU-24.03  ScaLAPACK/4.2-cpeGNU-24.03-amd"
+VASP-setup = "export EBU_USER_PREFIX=${IMDGroup}/dist/EasyBuild\nmodule load LUMI/24.03 partition/C PrgEnv-gnu cray-fftw/3.3.10.7 OpenBLAS/0.3.24-cpeGNU-24.03  ScaLAPACK/4.2-cpeGNU-24.03-amd"
 # https://docs.lumi-supercomputer.eu/runjobs/scheduled-jobs/lumic-job/
 mpiexec = "srun"
 
@@ -134,7 +134,7 @@ max-jobs = 120
 nodes = 1
 time  = '48:00:00'
 ntasks-per-node = 128
-account = 'project_465001654'
+account = 'project_465002777'
 
 [lumi.standard.sbatch]
 partition = 'standard'
@@ -177,6 +177,9 @@ time = '72:00:00'
 [lumi.gpu]
 # Adapter-specific queues override the server-level ``queues`` list.
 # When present, gorun uses these queues instead of the server default.
+# Auto-selection renders one sbatch script per listed queue and picks the
+# earliest finish, so keep dev-g out: production must not land on a
+# 30-minute debugging queue.  Pass --queue dev-g explicitly for a test.
 queues = ['small-g']
 shebang = '#!/bin/bash -l'
 setup = """
@@ -190,10 +193,36 @@ export GORUN_WRAPPER="srun --ntasks=1 --cpu-bind=cores singularity run $SIF bash
 export GORUN_INNER_SETUP=''
 
 # PyTorch / CUDA tuning
-export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True,max_split_size_mb:512"
 export TORCHINDUCTOR_CUDAGRAPH_SKIP_DYNAMIC_GRAPHS=1
 export TORCH_WARN_ON_WEIGHTS_ONLY=0
+export PYTHONUNBUFFERED=1
+"""
+
+# GPU defaults for every queue of this adapter; a queue's own ``sbatch``
+# table overrides them.
+[lumi.gpu.defaults.sbatch]
+nodes = 1
+ntasks = 1
+cpus-per-task = 4
+gpus = 1
+mem = '60G'
+
+# MACE fine-tuning runs in the same container.  There is no adapter-level
+# setup inheritance, so the block is repeated here; without it
+# ``mace-finetune`` runs on the bare login environment.
+[lumi.mace]
+queues = ['small-g']
+setup = """
+module purge
+module use /appl/local/laifs/modules
+module load lumi-aif-singularity-bindings
+
+export SIF="$SCRATCH/lumi-python-gpu.sif"
+export GORUN_WRAPPER="srun --ntasks=1 --cpu-bind=cores singularity run $SIF bash"
+export GORUN_INNER_SETUP=''
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 export PYTHONUNBUFFERED=1
 """
 
@@ -212,7 +241,7 @@ account = 'project_465002777'
 [lumi.small-g]
 type = 'GPU'
 partition = 'small-g'
-max-nodes = 2
+max-nodes = 4
 max-cpus-per-node = 1
 max-gpus-per-node = 8
 max-time = '72:00:00'
@@ -227,4 +256,26 @@ cpus-per-task = 4
 gpus = 1
 mem = '60G'
 time = '72:00:00'
+account = 'project_465002777'
+
+# Debugging queue: one job per user and one per project at a time, 30 min
+# with 32 nodes, 1 h with 16, 2 h with 8 (16 node-hours per job).
+# Not used for production; pass --queue dev-g explicitly.
+[lumi.dev-g]
+type = 'GPU'
+partition = 'dev-g'
+max-nodes = 8
+max-cpus-per-node = 1
+max-gpus-per-node = 8
+max-time = '02:00:00'
+max-jobs = 1
+
+[lumi.dev-g.sbatch]
+partition = 'dev-g'
+nodes = 1
+ntasks = 1
+cpus-per-task = 4
+gpus = 1
+mem = '60G'
+time = '00:30:00'
 account = 'project_465002777'
