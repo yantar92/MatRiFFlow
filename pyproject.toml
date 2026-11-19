@@ -119,7 +119,10 @@ filterwarnings = [
     "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning:ase\\.atoms",
     # Our own warning, expected noise in integration tests: the fake VASP
     # fixture has no vdw_kernel.bindat.
-    "ignore:Cannot find vdw_kernel.bindat:UserWarning:matrifflow\\.gorun\\.cleanVASP",
+    "ignore:Cannot find vdw_kernel.bindat:UserWarning:matriflow\\.gorun\\.cleanVASP",
+    # Matplotlib warns for some tight_layout().  The warning is
+    # test-order noise, ignore it.
+    "ignore:The figure layout has changed to tight:UserWarning",
     # Our own diagnostic warning category.  The diagnostics, VaspLog and
     # VaspDir tests emit VaspWarning records on purpose (via add()/emit())
     # to exercise collection and emission, so the display is expected test
