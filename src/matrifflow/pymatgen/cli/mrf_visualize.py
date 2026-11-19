@@ -1747,8 +1747,11 @@ def voltage(args):
     voltage_data = {'x': x, 'voltage': voltage, 'capacity': capacity}
     df = pd.DataFrame(voltage_data).sort_values("x")
 
+    # Save next to the pickle when DIR is a file, inside DIR otherwise.
+    output_dir = path.parent if path.is_file() else path
+
     # Save data
-    output_data = Path(args.dir) / 'voltage.out'
+    output_data = output_dir / 'voltage.out'
     df.to_csv(output_data, sep=' ', index=False)
     print(f"Voltage data saved to {output_data}")
 
@@ -1793,8 +1796,8 @@ def voltage(args):
     plt.title('Voltage Profile')
     plt.grid(alpha=0.3)
 
-    output_png = Path(args.dir) / f'voltage.{args.format}'
-    output_svg = Path(args.dir) / 'voltage.svg'
+    output_png = output_dir / f'voltage.{args.format}'
+    output_svg = output_dir / 'voltage.svg'
     plt.tight_layout()
     plt.savefig(output_png, dpi=args.dpi)
     if not args.format == "svg":
