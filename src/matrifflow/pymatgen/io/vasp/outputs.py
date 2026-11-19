@@ -551,7 +551,7 @@ class VasplogMixin:
             matching = [f for f in matching if not f.name.startswith('OUTCAR')]
         return sorted(matching, key=lambda f: f.stat().st_mtime)
 
-    def parse(self, log_matchers):
+    def parse(self, log_matchers: dict[str, Any]):
         """Parse log lines against the given matcher dictionary.
 
         Args:
