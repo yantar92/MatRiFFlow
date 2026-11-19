@@ -199,10 +199,10 @@ def selective_dynamics(args):
             structure = Structure.from_file(os.path.join(parent, 'POSCAR'))
             cif_name = 'selective_dynamics.cif'
             cif_path = os.path.join(parent, cif_name)
-            write_selective_dynamics_summary_maybe(structure, cif_path)
-            logger.info("Saving illustration to %s", cif_path)
-            print(colored(f"{parent.replace("./", "")}: ", attrs=['bold'])
-                  + f"Saved selective_dynamics to {cif_name}")
+            if write_selective_dynamics_summary_maybe(structure, cif_path):
+                logger.info("Saving illustration to %s", cif_path)
+                print(colored(f"{parent.replace("./", "")}: ", attrs=['bold'])
+                      + f"Saved selective_dynamics to {cif_name}")
 
 
 def atat_add_args(parser):
