@@ -1479,6 +1479,10 @@ def hull(args):
         df['c'] = (df['x'] + 1) / 2
         for entry in entries:
             atomic_fraction = entry.composition.get_atomic_fraction(args.ion)
+            if np.isclose(atomic_fraction, 1):
+                # Pure working ion: the ion/host ratio is infinite and
+                # the emc2 table maps a finite host concentration only.
+                continue
             c = 2 * atomic_fraction / (1 - atomic_fraction)
             closest_idx = (df['c'] - c).abs().idxmin()
             if np.abs(df.loc[closest_idx]['c'] - c) > 0.02:
