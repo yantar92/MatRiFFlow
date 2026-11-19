@@ -1772,21 +1772,15 @@ def voltage(args):
         'figure.titlesize': base_sz * 1.2,
     })
 
-    # Choose x-axis data and label based on selected xaxis
-    if args.xaxis == "capacity_grav" or args.xaxis == "capacity":
-        plot_x = df['capacity']
-        xlabel = 'Capacity (mAh/g)'
-    elif args.xaxis == "capacity_vol":
-        plot_x = df['capacity']
-        xlabel = 'Capacity (Ah/l)'
-    elif args.xaxis == "x_form":
-        plot_x = df['x']
-        xlabel = f'x in {args.ion.symbol}<sub>x</sub>Host'
-    elif args.xaxis == "frac_x":
-        plot_x = df['x']
-        xlabel = f'Atomic Fraction of {args.ion.symbol}'
-    else:
-        raise ValueError(f"Unknown xaxis: {args.xaxis}")
+    # Choose x-axis data and label based on selected xaxis.  The plotter
+    # above has already validated --xaxis against these four choices.
+    xaxis_plots = {
+        "capacity_grav": (df['capacity'], 'Capacity (mAh/g)'),
+        "capacity_vol": (df['capacity'], 'Capacity (Ah/l)'),
+        "x_form": (df['x'], f'x in {args.ion.symbol}<sub>x</sub>Host'),
+        "frac_x": (df['x'], f'Atomic Fraction of {args.ion.symbol}'),
+    }
+    plot_x, xlabel = xaxis_plots[args.xaxis]
 
     plt.figure(figsize=(10, 6))
     plt.step(plot_x, df['voltage'], where='post', color='blue', linewidth=2)
