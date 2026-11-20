@@ -1491,7 +1491,7 @@ def _append_valid(
     return structure
 
 
-def neb_diffusion(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
+def neb_diffusion(args: Namespace) -> dict[str, list[MRFNEBVaspInputSet]]:
     """Create NEB input for all possible diffusion paths.
 
     Args:

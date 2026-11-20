@@ -238,7 +238,10 @@ class InsertMoleculeTransformation(AbstractTransformation):
         """Find the largest atomic radius across species in structurelike.
         obj is a Molecule or Structure.
         """
-        return max(s.atomic_radius for s in obj.species)
+        # FIXME: pymatgen types atomic_radius as `FloatWithUnit | None`,
+        # but it is a float subclass in practice.
+        return max(
+            cast(FloatWithUnit, s.atomic_radius) for s in obj.species)
 
     def _check_proximity(
             self,
@@ -325,8 +328,10 @@ class InsertMoleculeTransformation(AbstractTransformation):
             # atomic radii used in ``max_distance`` below.
             distance = structure1.lattice.get_distance_and_image(
                 site1.frac_coords, site2.frac_coords)[0]
-            site1_radius = site1.specie.atomic_radius
-            site2_radius = site2.specie.atomic_radius
+            # FIXME: pymatgen types atomic_radius as `FloatWithUnit | None`,
+            # but it is a float subclass in practice.
+            site1_radius = cast(FloatWithUnit, site1.specie.atomic_radius)
+            site2_radius = cast(FloatWithUnit, site2.specie.atomic_radius)
             max_distance = self.proximity_threshold * (site1_radius + site2_radius)
             if distance >= max_distance:
                 return True

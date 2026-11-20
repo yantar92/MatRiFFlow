@@ -40,6 +40,7 @@ from argparse import Namespace
 from pathlib import Path
 from typing import TextIO
 from collections import deque
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import cachetools.func
@@ -465,7 +466,7 @@ def _add_run_row(table: Table, row: _RunRow) -> None:
     table.add_row(*cells)
 
 
-def _build_status_table(rows: list[_RunRow], dir_max: int) -> Table:
+def _build_status_table(rows: Iterable[_RunRow], dir_max: int) -> Table:
     """Build a fresh status table holding the given ROWS.
 
     Callers rebuild the table only when ``rows`` changes, so it always
