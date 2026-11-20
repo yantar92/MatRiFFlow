@@ -32,7 +32,7 @@ import os
 from pathlib import Path
 import multiprocessing
 from collections import Counter
-from collections.abc import Callable, Collection, Mapping, Sequence
+from collections.abc import Callable, Collection
 from multiprocessing import Pool
 from typing import Any
 import numpy as np

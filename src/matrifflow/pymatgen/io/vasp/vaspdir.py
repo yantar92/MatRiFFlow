@@ -364,7 +364,7 @@ class MRFVaspDir(Mapping, MSONable):
         return cls._lmdb_set_many({key: data})
 
     @classmethod
-    def _lmdb_get_meta_all(cls, txn: lmdb.Transaction) -> dict[str, dict[str, Any]]:
+    def _lmdb_get_meta_all(cls, txn: 'lmdb.Transaction[bytes]') -> dict[str, dict[str, Any]]:
         """Return all metadata as {key: meta_dict}.
 
         Must be called inside an active LMDB transaction.
@@ -384,7 +384,7 @@ class MRFVaspDir(Mapping, MSONable):
         return result
 
     @classmethod
-    def _lmdb_evict(cls, txn: lmdb.Transaction, needed_bytes: int) -> int:
+    def _lmdb_evict(cls, txn: 'lmdb.Transaction[bytes]', needed_bytes: int) -> int:
         """Evict oldest entries to free at least *needed_bytes*.
 
         Must be called inside an active write transaction.
@@ -838,8 +838,10 @@ class MRFVaspDir(Mapping, MSONable):
             return True
         return any(name + ext in files for ext in cls.COMPRESSION_EXTENSIONS)
 
-    def __contains__(self, item: str) -> bool:
-        return self._resolve_filename(item) is not None
+    def __contains__(self, item: object) -> bool:
+        if isinstance(item, str) or isinstance(item, Path):
+            return self._resolve_filename(str(item)) is not None
+        return False
 
     def __len__(self):
         return len(self.files)

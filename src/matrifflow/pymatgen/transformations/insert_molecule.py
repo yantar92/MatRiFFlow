@@ -29,7 +29,7 @@
 
 import logging
 from collections.abc import Iterable, Sequence
-from typing import Any, cast
+from typing import cast
 from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
@@ -116,7 +116,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         if isinstance(molecule, SpeciesLike):
             try:
                 molecule = Molecule([get_el_sp(molecule)], [[0, 0, 0]])
-            except ValueError as e:
+            except ValueError:
                 assert isinstance(molecule, str)
                 # Try to parse as filename
                 # FIXME: Molecule.from_file is annotated as
@@ -151,7 +151,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         self.matcher = matcher
         self.multithread = multithread
 
-    def _get_site_grid(self, structure: Structure) -> list[np.ndarray]:
+    def _get_site_grid(self, structure: Structure) -> list[list[float]]:
         """Generate a list of candidate fractional coordinates.
                 Args:
                 structure (Strcuture): Structure to put candidates into
@@ -325,8 +325,9 @@ class InsertMoleculeTransformation(AbstractTransformation):
             # atomic radii used in ``max_distance`` below.
             distance = structure1.lattice.get_distance_and_image(
                 site1.frac_coords, site2.frac_coords)[0]
-            max_distance = self.proximity_threshold * (
-                site1.specie.atomic_radius + site2.specie.atomic_radius)
+            site1_radius = site1.specie.atomic_radius
+            site2_radius = site2.specie.atomic_radius
+            max_distance = self.proximity_threshold * (site1_radius + site2_radius)
             if distance >= max_distance:
                 return True
         return False

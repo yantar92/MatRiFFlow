@@ -31,7 +31,7 @@ import logging
 import warnings
 from collections.abc import Callable, Sequence
 from multiprocessing import Pool
-from typing import Any, cast
+from typing import cast
 from alive_progress import alive_bar
 import numpy as np
 import networkx as nx
@@ -139,7 +139,7 @@ class NEB_Graph(MultiDiGraph):
 
     def __add_edge(
             self, from_idx: int, to_idx: int, vector: Sequence[np.ndarray]) -> None:
-        def get_distance(vec: np.ndarray) -> float:
+        def get_distance(vec: Sequence[np.ndarray]) -> float:
             distance = 0
             for idx, v in enumerate(vec):
                 # When we consider self-self paths, there is no way

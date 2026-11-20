@@ -56,6 +56,7 @@ from matrifflow.pymatgen.core.structure import structure_distance
 from matrifflow.pymatgen.io.vasp.outputs import (
     Outcar,
     RunTimingStats,
+    MeanStd,
     Vasplog,
     read_outcar_timing_stats,
 )
@@ -275,7 +276,7 @@ def format_timing_stats(stats: RunTimingStats) -> str:
     if stats.scf.n == 0:
         return ""
 
-    def fmt(mean_std: RunTimingStats) -> str:
+    def fmt(mean_std: MeanStd) -> str:
         mean = format_duration(mean_std.mean)
         if mean_std.n < 2 or np.isnan(mean_std.std):
             return mean
