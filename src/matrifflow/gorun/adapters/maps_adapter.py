@@ -29,6 +29,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 import subprocess
 import shutil
 
@@ -116,7 +117,7 @@ class MapsAdapter:
         path: Path, *,
         keep: set[str] | None = None,
         force: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Clean lock files from previous runs."""
         (path / "pollmach_is_running").unlink(missing_ok=True)

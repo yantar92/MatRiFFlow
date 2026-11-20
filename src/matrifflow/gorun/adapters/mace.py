@@ -72,6 +72,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from typing import Any, cast
 
 import pandas as pd
@@ -572,7 +573,7 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
         path: Path, *,
         keep: set[str] | None = None,
         force: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         if keep is None:
             keep = set()

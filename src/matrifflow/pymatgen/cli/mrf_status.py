@@ -27,20 +27,24 @@
 
 """Check status of running VASP calculations."""
 import argparse
-import sys
-import os
-import re
 import datetime
 import logging
-import warnings
-import subprocess
+import os
+import re
 import shutil
+import subprocess
+import sys
 import time
+import warnings
+from argparse import Namespace
+from pathlib import Path
+from typing import TextIO
 from collections import deque
 from dataclasses import dataclass
-from pathlib import Path
+
 import cachetools.func
 import numpy as np
+from pymatgen.core import Structure
 from termcolor import colored
 from rich.console import Console, Group
 from rich.live import Live
@@ -73,7 +77,12 @@ console._force_terminal = console.is_terminal
 
 
 def custom_showwarning(
-        message, category, _filename, _lineno, file=None, _line=None):
+        message: Warning | str,
+        category: type[Warning],
+        _filename: str,
+        _lineno: int,
+        file: TextIO | None = None,
+        _line: str | None = None) -> None:
     """Print warning in nicer way.
 
     Args:
@@ -108,7 +117,7 @@ def _slurm_get_queue():
     return result
 
 
-def slurm_runningp(path):
+def slurm_runningp(path: str | Path) -> bool:
     """Check whether a Slurm job is running in the given directory.
 
     Args:
@@ -132,7 +141,7 @@ def slurm_runningp(path):
     return False
 
 
-def add_args(parser):
+def add_args(parser: argparse.ArgumentParser) -> None:
     """Register subcommand arguments.
 
     Args:
@@ -192,7 +201,7 @@ def add_args(parser):
     )
 
 
-def print_seconds(seconds):
+def print_seconds(seconds: float) -> str:
     """Convert a duration in seconds to a human-readable string.
 
     Args:
@@ -227,7 +236,7 @@ def print_seconds(seconds):
     return " ".join(output)
 
 
-def format_duration(seconds):
+def format_duration(seconds: float | None) -> str:
     """Format a duration in seconds compactly.
 
     Rounds to the most significant non-zero unit so the string stays
@@ -266,7 +275,7 @@ def format_timing_stats(stats: RunTimingStats) -> str:
     if stats.scf.n == 0:
         return ""
 
-    def fmt(mean_std):
+    def fmt(mean_std: RunTimingStats) -> str:
         mean = format_duration(mean_std.mean)
         if mean_std.n < 2 or np.isnan(mean_std.std):
             return mean
@@ -275,7 +284,7 @@ def format_timing_stats(stats: RunTimingStats) -> str:
     return f"SCF: {fmt(stats.scf)} relax: {fmt(stats.ionic)}"
 
 
-def vasp_output_time(path):
+def vasp_output_time(path: str | Path) -> float | None:
     """Return last VASP output modification time.
 
     Deprecated: use :meth:`MRFVaspDir.output_mtime` instead.
@@ -346,7 +355,7 @@ def _get_neb_summary(vaspdir: MRFVaspDir) -> str:
             nebimagedir.final_structure or nebimagedir.initial_structure)
         neb_structures_initial.append(nebimagedir.initial_structure)
 
-    def get_dists(structs):
+    def get_dists(structs: list[Structure | None]) -> str:
         dists = [
             structure_distance(str1, str2, tol=0)
             for str1, str2 in zip(structs, structs[1:])]
@@ -425,7 +434,7 @@ def _details_text(row: _RunRow) -> str:
     return " | ".join(parts)
 
 
-def _add_run_row(table, row):
+def _add_run_row(table: Table, row: _RunRow) -> None:
     """Append one run's display cells to TABLE.
 
     Args:
@@ -455,7 +464,7 @@ def _add_run_row(table, row):
     table.add_row(*cells)
 
 
-def _build_status_table(rows, dir_max):
+def _build_status_table(rows: list[_RunRow], dir_max: int) -> Table:
     """Build a fresh status table holding the given ROWS.
 
     Callers rebuild the table only when ``rows`` changes, so it always
@@ -484,7 +493,7 @@ def _build_status_table(rows, dir_max):
     return table
 
 
-def status(args):
+def status(args: Namespace) -> int:
     """Run the status subcommand.
 
     Args:
@@ -493,7 +502,7 @@ def status(args):
     Returns:
         int: Exit code (0 on success).
     """
-    def include_dirp(p):
+    def include_dirp(p: str | Path) -> bool:
         p = str(p)
         if args.exclude is not None and re.search(args.exclude, p):
             return False

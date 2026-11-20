@@ -26,17 +26,22 @@
 
 
 """mrf sub-command to create new VASP inputs from scratch."""
+import argparse
+import logging
 import os
 import re
-import logging
+from argparse import Namespace
+from pathlib import Path
+
 import pymatgen.core as pmg
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+
 from matrifflow.pymatgen.io.vasp.sets import MRFStandardVaspInputSet
 
 logger = logging.getLogger(__name__)
 
 
-def add_args(parser):
+def add_args(parser: argparse.ArgumentParser) -> None:
     """Register subcommand arguments.
 
     Args:
@@ -60,7 +65,7 @@ def add_args(parser):
     )
 
 
-def create_from_mpid(mpid):
+def create_from_mpid(mpid: str) -> pmg.Structure:
     """Fetch and standardise a structure from Materials Project.
 
     Args:
@@ -114,7 +119,7 @@ def create_from_mpid(mpid):
     return standard_structure
 
 
-def create_from_file(path):
+def create_from_file(path: str | Path) -> pmg.Structure:
     """Load a structure from a file.
 
     Args:
@@ -131,7 +136,9 @@ def create_from_file(path):
     return structure
 
 
-def create_from_atom_name(name, size):
+def create_from_atom_name(
+        name: str, size: tuple[float, float, float] | list[float]
+) -> pmg.Structure:
     """Create a boxed periodic structure with a single atom centred.
 
     Args:
@@ -150,7 +157,7 @@ def create_from_atom_name(name, size):
         molecule.get_boxed_structure(size[0], size[1], size[2]))
 
 
-def create(args):
+def create(args: Namespace) -> int:
     """Run the create subcommand.
 
     Args:

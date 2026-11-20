@@ -28,6 +28,7 @@
 """Generate all the symmetrically equivalent clones of a site in structure."""
 
 import logging
+from typing import Any
 # from multiprocessing import Pool, cpu_count
 from pymatgen.transformations.transformation_abc import AbstractTransformation
 from pymatgen.core import (SymmOp, Structure, get_el_sp)
@@ -56,7 +57,7 @@ class SymmetryFillTransformation(AbstractTransformation):
     def __init__(
             self,
             sym_operations: list[SymmOp] | Structure,
-            element_list: list[SpeciesLike]):
+            element_list: list[SpeciesLike]) -> None:
         """Create structure with sites cloned according to symmetry.
 
         Args:
@@ -120,7 +121,8 @@ class SymmetryFillTransformation(AbstractTransformation):
         return filled_structure
 
 
-def apply_operation_keep_lattice(structure, op):
+def apply_operation_keep_lattice(
+        structure: Structure, op: SymmOp) -> Structure:
     """Apply a symmetry operation while preserving lattice vectors.
 
     The modified structure will have atom-to-atom match and all
@@ -176,7 +178,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
     def __init__(
             self,
             sym_operations: list[SymmOp] | Structure,
-            filter_cls=None,
+            filter_cls: Any | None = None,
             tol: float = 0.5
     ):
         """Initialise symmetry clone transformation.
@@ -226,7 +228,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
         """
         clones = []
 
-        def _member(structure, clones):
+        def _member(structure: Structure, clones: list[Structure]) -> bool:
             """Check whether a structure is equivalent to any in a list.
 
             Returns:

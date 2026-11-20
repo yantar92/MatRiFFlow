@@ -48,6 +48,7 @@ import os
 import sys
 import warnings
 from pathlib import Path
+from typing import TextIO
 
 from termcolor import colored
 
@@ -65,7 +66,13 @@ from matrifflow.gorun.adapters.atat_local import AtatLocalAdapter
 # Cosmetic: colourise Python warnings
 # ---------------------------------------------------------------------------
 
-def _showwarning(message, category, _filename, _lineno, file=None, _line=None):
+def _showwarning(
+        message: Warning | str,
+        category: type[Warning],
+        _filename: str,
+        _lineno: int,
+        file: TextIO | None = None,
+        _line: str | None = None) -> None:
     output = (
         colored(f"{category.__name__}: ", "yellow", attrs=["bold"])
         + f"{message}"
@@ -727,7 +734,7 @@ def main_mace(argv: list[str] | None = None) -> int:
     return main(["mace-finetune"] + argv)
 
 
-def run(args=None) -> int:
+def run(args: argparse.Namespace | list[str] | None = None) -> int:
     """Run gorun from a Namespace or argv list.
 
     Pre-rewrite callers passed an ``argparse.Namespace`` (for example

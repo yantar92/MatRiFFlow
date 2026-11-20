@@ -27,9 +27,11 @@
 
 """Analysis extensions specific to MRF group.
 Based on pymatgen's pymatgen.cli.pmg_analyze."""
+import argparse
 import logging
 import re
 import sys
+from argparse import Namespace
 from pathlib import Path
 from tabulate import tabulate
 import pandas as pd
@@ -70,7 +72,7 @@ DEFAULT_FIELDS = [
 ]
 
 
-def add_args(parser):
+def add_args(parser: argparse.ArgumentParser) -> None:
     """Register subcommand arguments.
 
     Args:
@@ -283,7 +285,8 @@ def _read_field_1(field: str, vaspdir: MRFVaspDir):
     return val
 
 
-def _render_table(df, console=None):
+def _render_table(
+        df: pd.DataFrame, console: Console | None = None) -> None:
     """Render a pandas DataFrame as a rich table.
 
     Args:
@@ -309,7 +312,7 @@ def _render_table(df, console=None):
     console.print(table)
 
 
-def analyze(args):
+def analyze(args: Namespace) -> int:
     """Run the analysis subcommand.
 
     Args:
@@ -318,7 +321,7 @@ def analyze(args):
     Returns:
         int: Exit code (0 on success).
     """
-    def include_dirp(p):
+    def include_dirp(p: str | Path) -> bool:
         p = str(p)
         if args.exclude is not None and re.search(args.exclude, p):
             return False

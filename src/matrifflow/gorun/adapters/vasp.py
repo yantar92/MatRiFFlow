@@ -31,6 +31,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from typing import Any
 
 from termcolor import colored
 
@@ -182,7 +183,7 @@ class VaspAdapter:
         path: Path, *,
         keep: set[str] | None = None,
         force: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         if keep is None:
             keep = set()

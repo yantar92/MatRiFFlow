@@ -36,6 +36,7 @@ import glob
 import os
 import shutil
 import dateutil
+from collections.abc import Sequence
 from pathlib import Path
 
 from termcolor import colored
@@ -84,7 +85,9 @@ def user_job_count() -> int:
     return int(subprocess.check_output("squeue -u $USER -o %Z | wc -l", shell=True)) - 1
 
 
-def clear_slurm_logs(path='.', extra_logs=None):
+def clear_slurm_logs(
+        path: str | os.PathLike[str] = '.',
+        extra_logs: Sequence[str] | None = None) -> None:
     """Clear all the slurm logs in PATH.
 
     *extra_logs* is an optional list of additional log filenames
@@ -101,7 +104,8 @@ def clear_slurm_logs(path='.', extra_logs=None):
             print(f"Error deleting SLURM file {slurm_file}: {e}")
 
 
-def sbatch_script(shebang, args: dict[str, str], script: str) -> str:
+def sbatch_script(
+        shebang: str, args: dict[str, str], script: str) -> str:
     """Generate sbatch SCRIPT using SHEBANG, passing ARGS to sbatch.
     SCRIPT is a bash script to be queued.
     Return generated script, as a string.
@@ -174,7 +178,7 @@ def sbatch_estimate_start(script: str):
 
 def get_best_script(
         alt_args: list[dict],
-        script,
+        script: str,
         shebang: str = "#!/usr/bin/env bash",
 ) -> str:
     """Choose across ALT_ARGS lists, selecting the best sbatch script.

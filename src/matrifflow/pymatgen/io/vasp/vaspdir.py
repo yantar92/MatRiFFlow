@@ -37,11 +37,12 @@ import itertools
 import pickle
 import signal
 import sys
+from types import FrameType
 import threading
 import atexit
 from pathlib import Path
 from typing import cast, Collection, Any
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 import lmdb
 import numpy as np
 from monty.json import MSONable
@@ -81,7 +82,7 @@ class TimeoutException(Exception):
     """Raised when a VASP directory read operation times out."""
 
 
-def timeout_handler(signum, frame):
+def timeout_handler(signum: int, frame: FrameType | None) -> None:
     """Signal handler that raises TimeoutException.
 
     Args:
@@ -363,7 +364,7 @@ class MRFVaspDir(Mapping, MSONable):
         return cls._lmdb_set_many({key: data})
 
     @classmethod
-    def _lmdb_get_meta_all(cls, txn) -> dict[str, dict[str, Any]]:
+    def _lmdb_get_meta_all(cls, txn: lmdb.Transaction) -> dict[str, dict[str, Any]]:
         """Return all metadata as {key: meta_dict}.
 
         Must be called inside an active LMDB transaction.
@@ -383,7 +384,7 @@ class MRFVaspDir(Mapping, MSONable):
         return result
 
     @classmethod
-    def _lmdb_evict(cls, txn, needed_bytes: int) -> int:
+    def _lmdb_evict(cls, txn: lmdb.Transaction, needed_bytes: int) -> int:
         """Evict oldest entries to free at least *needed_bytes*.
 
         Must be called inside an active write transaction.
@@ -740,7 +741,10 @@ class MRFVaspDir(Mapping, MSONable):
             self._summary = self._fresh_summary()
         return self._summary
 
-    def _memoized(self, key, compute):
+    def _memoized(
+            self,
+            key: str | tuple[Any, ...],
+            compute: Callable[[], Any]) -> Any:
         """Return ``self._summary[key]``, computing and caching on a miss."""
         summary = self._ensure_summary_loaded()
         if key in summary:
@@ -752,7 +756,8 @@ class MRFVaspDir(Mapping, MSONable):
 
     @staticmethod
     def read_vaspdirs(
-            rootpath: Path | str | list[Path | str], path_filter=None
+            rootpath: Path | str | list[Path | str],
+            path_filter: Callable[[Path], bool] | None = None
     ) -> dict[str, 'MRFVaspDir']:
         """Recursively scan directories for VASP calculations.
 
@@ -833,7 +838,7 @@ class MRFVaspDir(Mapping, MSONable):
             return True
         return any(name + ext in files for ext in cls.COMPRESSION_EXTENSIONS)
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         return self._resolve_filename(item) is not None
 
     def __len__(self):
@@ -842,7 +847,7 @@ class MRFVaspDir(Mapping, MSONable):
     def __iter__(self):
         return iter(f.name for f in self.files)
 
-    def __getitem__(self, item) -> typing.Any:
+    def __getitem__(self, item: str) -> typing.Any:
         if self._parsed_files is None:
             self.refresh()
         assert self._parsed_files is not None
@@ -1246,8 +1251,9 @@ class MRFVaspDir(Mapping, MSONable):
         return True
 
     def check_framework_symmetry(
-            self, framework_elements=None,
-            symprec=FRAMEWORK_SYMPREC) -> bool:
+            self,
+            framework_elements: Collection[str] | None = None,
+            symprec: float = FRAMEWORK_SYMPREC) -> bool:
         """Check whether the framework symmetry is preserved.
 
         Reduces false positives from mobile atoms breaking symmetry.
@@ -1275,7 +1281,8 @@ class MRFVaspDir(Mapping, MSONable):
                 framework_elements, symprec))
 
     def _compute_framework_symmetry(
-            self, framework_elements, symprec) -> bool:
+            self, framework_elements: Collection[str],
+            symprec: float) -> bool:
         assert self.initial_structure is not None
         assert self.final_structure is not None
         init_sg = get_framework_space_group(

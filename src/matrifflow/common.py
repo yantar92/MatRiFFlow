@@ -27,7 +27,9 @@
 
 """Common routines used across the sub-libraries."""
 import logging
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,10 @@ def suppress_spglib_warnings():
     os.environ.setdefault("SPGLIB_WARNING", "OFF")
 
 
-def groupby_cmp(lst, cmp_eq, title_function=None):
+def groupby_cmp(
+        lst: Sequence[Any],
+        cmp_eq: Callable[[Any, Any], bool],
+        title_function: Callable[[Any], str] | None = None) -> list[list[Any]]:
     """Group elements of a list by pairwise equality.
 
     Each item is compared only against the first member of every existing
@@ -120,7 +125,9 @@ def groupby_cmp(lst, cmp_eq, title_function=None):
     return groups
 
 
-def deprecated_aliases(module_globals, **aliases):
+def deprecated_aliases(
+        module_globals: dict[str, Any],
+        **aliases: str) -> Callable[[str], Any]:
     """Return a module-level ``__getattr__`` resolving deprecated names.
 
     ``aliases`` maps each legacy name to the current name present in
@@ -135,7 +142,7 @@ def deprecated_aliases(module_globals, **aliases):
     """
     import warnings
 
-    def __getattr__(name):
+    def __getattr__(name: str) -> Any:
         if name in aliases:
             warnings.warn(
                 f"{name} is deprecated; use {aliases[name]} instead.",

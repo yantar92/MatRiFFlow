@@ -29,6 +29,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from matrifflow.gorun.adapters.vasp import VaspAdapter
 
@@ -98,7 +99,7 @@ class AtatLocalAdapter:
         path: Path, *,
         keep: set[str] | None = None,
         force: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """No preparation — ATAT input is derived inside the run command."""
         pass

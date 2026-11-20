@@ -31,12 +31,14 @@ import re
 import warnings
 import argparse
 import dataclasses
+from argparse import Namespace
 import logging
 from multiprocessing import Pool
-from typing import cast
+from pathlib import Path
+from typing import Any, cast
+
 import numpy as np
 import pymatgen.core as pmg
-from pathlib import Path
 from pymatgen.io.vasp.inputs import Kpoints
 from pymatgen.core import Structure, PeriodicSite
 from matrifflow.pymatgen.core.structure import\
@@ -56,7 +58,7 @@ from matrifflow.pymatgen.transformations.symmetry_clone\
 logger = logging.getLogger(__name__)
 
 
-def _read_vasprun(directory):
+def _read_vasprun(directory: str | Path) -> Any:
     """Read ``vasprun.xml`` from DIRECTORY, compression-aware.
 
     Uses :class:`MRFVaspDir` so ``vasprun.xml.gz`` and friends are
@@ -71,7 +73,7 @@ def _read_vasprun(directory):
     return run
 
 
-def add_args(parser):
+def add_args(parser: argparse.ArgumentParser) -> None:
     """Register subcommand arguments.
 
     Args:
@@ -301,7 +303,7 @@ directory or alongside str.out.""")
     atat_add_args(parser_atat)
 
 
-def _str_to_bool(value):
+def _str_to_bool(value: str) -> bool:
     """Convert string value to boolean.
 
     Args:
@@ -321,7 +323,7 @@ def _str_to_bool(value):
     raise argparse.ArgumentTypeError(f"Invalid boolean value: {value}")
 
 
-def perturb_add_args(parser):
+def perturb_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for perturb.
 
     Args:
@@ -343,7 +345,7 @@ def perturb_add_args(parser):
     )
 
 
-def perturb(args):
+def perturb(args: Namespace) -> int:
     """Create perturbed input.
 
     Args:
@@ -368,7 +370,7 @@ def perturb(args):
     return {'inputsets': [inputset]}
 
 
-def strain_add_args(parser):
+def strain_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for strain.
 
     Args:
@@ -407,7 +409,7 @@ def strain_add_args(parser):
     )
 
 
-def strain(args):
+def strain(args: Namespace) -> int:
     """Create strained input.
 
     Args:
@@ -465,7 +467,7 @@ def strain(args):
     return {'inputsets': outputs}
 
 
-def relax_add_args(parser):
+def relax_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for relax.
 
     Args:
@@ -493,7 +495,7 @@ def relax_add_args(parser):
     )
 
 
-def relax(args):
+def relax(args: Namespace) -> int:
     """Create relaxation setup.
 
     Args:
@@ -540,7 +542,7 @@ def relax(args):
     return {'inputsets': [inputset]}
 
 
-def supercell_add_args(parser):
+def supercell_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for supercell.
 
     Args:
@@ -559,7 +561,7 @@ def supercell_add_args(parser):
         default=10000)
 
 
-def supercell(args):
+def supercell(args: Namespace) -> int:
     """Create supercell.
 
     Args:
@@ -581,7 +583,7 @@ def supercell(args):
     return {'inputsets': [inputset]}
 
 
-def functional_add_args(parser):
+def functional_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for functional.
 
     Args:
@@ -598,7 +600,7 @@ def functional_add_args(parser):
         type=str)
 
 
-def functional(args):
+def functional(args: Namespace) -> int:
     """Create custom functional setup.
 
     Args:
@@ -616,7 +618,7 @@ def functional(args):
     return {'inputsets': [inputset]}
 
 
-def fix_add_args(parser):
+def fix_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for selective dynamics.
 
     Args:
@@ -636,7 +638,7 @@ def fix_add_args(parser):
     )
 
 
-def fix(args):
+def fix(args: Namespace) -> int:
     """Apply selective dynamics constraints.
 
     Args:
@@ -701,7 +703,7 @@ def fix(args):
     return {'inputsets': [inputset]}
 
 
-def incar_add_args(parser):
+def incar_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for incar.
 
     Args:
@@ -715,7 +717,7 @@ def incar_add_args(parser):
         type=str)
 
 
-def incar(args):
+def incar(args: Namespace) -> int:
     """Create custom incar setup.
 
     Args:
@@ -771,7 +773,7 @@ def _validate_potcar_pair(element: str, symbol: str) -> None:
         )
 
 
-def potcar_add_args(parser):
+def potcar_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for POTCAR.
 
     Args:
@@ -786,7 +788,7 @@ def potcar_add_args(parser):
         type=str)
 
 
-def potcar(args):
+def potcar(args: Namespace) -> int:
     """Create custom POTCAR setup.
 
     Args:
@@ -828,7 +830,7 @@ def potcar(args):
     return {'inputsets': [inputset]}
 
 
-def kpoints_add_args(parser):
+def kpoints_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for kpoints.
 
     Args:
@@ -849,7 +851,7 @@ def kpoints_add_args(parser):
     )
 
 
-def kpoints(args):
+def kpoints(args: Namespace) -> int:
     """Create custom kpoints setup.
 
     Args:
@@ -877,7 +879,7 @@ def kpoints(args):
     return {'inputsets': [inputset]}
 
 
-def scf_add_args(parser):
+def scf_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for SCF calculation.
 
     Args:
@@ -886,7 +888,7 @@ def scf_add_args(parser):
     parser.set_defaults(func_derive=scf)
 
 
-def scf(args):
+def scf(args: Namespace) -> int:
     """Create SCF setup.
 
     Args:
@@ -907,7 +909,7 @@ def scf(args):
     return {'inputsets': [inputset]}
 
 
-def insert_add_args(parser):
+def insert_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for inserting an atom/molecule.
 
     Args:
@@ -954,7 +956,7 @@ When negative number, use random sampling instead of scanning a grid""",
         action="store_true")
 
 
-def insert(args):
+def insert(args: Namespace) -> int:
     """Create setup for inserted molecules/atoms.
 
     Args:
@@ -1003,7 +1005,7 @@ def insert(args):
     return {'inputsets': results}
 
 
-def delete_add_args(parser):
+def delete_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for deleting a site.
 
     Args:
@@ -1017,7 +1019,7 @@ def delete_add_args(parser):
         type=str)
 
 
-def delete(args):
+def delete(args: Namespace) -> int:
     """Delete a site/sites from structure.
 
     Args:
@@ -1039,7 +1041,7 @@ def delete(args):
     return {'inputsets': [inputset]}
 
 
-def fill_add_args(parser):
+def fill_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for filling sites.
 
     Args:
@@ -1071,7 +1073,7 @@ def fill_add_args(parser):
     )
 
 
-def fill(args):
+def fill(args: Namespace) -> int:
     """Create a structure file with all insertion sites filled.
 
     Take prototype structure and a set of relaxed configurations with
@@ -1142,7 +1144,7 @@ def fill(args):
     return {'inputsets': [inputset]}
 
 
-def atat_add_args(parser):
+def atat_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for ATAT input.
 
     Args:
@@ -1160,7 +1162,7 @@ def atat_add_args(parser):
         type=float)
 
 
-def atat(args):
+def atat(args: Namespace) -> int:
     """Create ATAT input according to str.out.
 
     Preserve selective dynamics settings from the original POSCAR.
@@ -1259,7 +1261,7 @@ def atat(args):
     return {'inputsets': [inputset]}
 
 
-def neb_add_args(parser):
+def neb_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for NEB input.
 
     Args:
@@ -1277,7 +1279,7 @@ def neb_add_args(parser):
         default=4)
 
 
-def neb(args):
+def neb(args: Namespace) -> int:
     """Create NEB input.
 
     Args:
@@ -1295,7 +1297,7 @@ def neb(args):
     return {'inputsets': [inputset]}
 
 
-def neb_diffusion_add_args(parser):
+def neb_diffusion_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for diffusion NEB input.
 
     Args:
@@ -1360,7 +1362,12 @@ def neb_diffusion_add_args(parser):
         type=int)
 
 
-def __neb_diffusion_get_inputset(idx, beg, end, args, auto_nimages=False):
+def __neb_diffusion_get_inputset(
+        idx: int,
+        beg: Structure,
+        end: Structure,
+        args: Namespace,
+        auto_nimages: bool = False) -> MRFNEBVaspInputSet:
     """Create a single NEB input set for a diffusion pair.
 
     Args:
@@ -1402,7 +1409,10 @@ def __neb_diffusion_get_inputset(idx, beg, end, args, auto_nimages=False):
     return inputset
 
 
-def __neb_diffusion_get_inputsets(pairs, args, auto_nimages=False):
+def __neb_diffusion_get_inputsets(
+        pairs: list[tuple[Structure, Structure]],
+        args: Namespace,
+        auto_nimages: bool = False) -> list[MRFNEBVaspInputSet]:
     """Create NEB input sets for a list of diffusion pairs.
 
     Args:
@@ -1432,7 +1442,7 @@ def __neb_diffusion_get_inputsets(pairs, args, auto_nimages=False):
 def _append_valid(
         site: PeriodicSite,
         structure: Structure,
-        frac_tol: float):
+        frac_tol: float) -> Structure:
     """Append a site to a structure without breaking validity.
 
     If the site can be appended without violating proximity
@@ -1481,7 +1491,7 @@ def _append_valid(
     return structure
 
 
-def neb_diffusion(args):
+def neb_diffusion(args: Namespace) -> int:
     """Create NEB input for all possible diffusion paths.
 
     Args:
@@ -1557,7 +1567,7 @@ def neb_diffusion(args):
     return {'inputsets': result}
 
 
-def derive(args):
+def derive(args: Namespace) -> int:
     """Run the derive subcommand.
 
     Args:

@@ -32,6 +32,7 @@ import os
 import shutil
 import re
 import warnings
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from pymatgen.io.vasp.inputs import Incar, Poscar, Potcar
 from matrifflow.pymatgen.io.vasp.sets import (
@@ -44,7 +45,7 @@ from matrifflow.gorun.core.incar import read_incar_toml
 from xml.etree.ElementTree import ParseError
 
 
-def _output_file_nonempty(path, name):
+def _output_file_nonempty(path: str | os.PathLike[str], name: str) -> bool:
     """Return True when ``name`` or a compressed variant is non-empty.
 
     VASP cleanup may compress OUTCAR/vasprun.xml after a run, so the
@@ -57,7 +58,7 @@ def _output_file_nonempty(path, name):
     return False
 
 
-def directory_contains_vasp_outputp(path):
+def directory_contains_vasp_outputp(path: str | os.PathLike[str]) -> bool:
     """Return True when PATH contains VASP outputs.
 
     Checks OUTCAR and vasprun.xml (and their compressed variants),
@@ -75,9 +76,8 @@ def directory_contains_vasp_outputp(path):
     return False
 
 
-def directory_converged_p(path):
-    """Return True when PATH contains converged VASP output.
-    """
+def directory_converged_p(path: str | os.PathLike[str]) -> bool:
+    """Return True when PATH contains converged VASP output."""
     if directory_contains_vasp_outputp(path):
         vaspdir = MRFVaspDir(path)
         return vaspdir.converged_electronic and vaspdir.converged_ionic\
@@ -85,9 +85,8 @@ def directory_converged_p(path):
     return False
 
 
-def nebp(path):
-    """Return True when PATH is a NEB-like run.
-    """
+def nebp(path: str | os.PathLike[str]) -> bool:
+    """Return True when PATH is a NEB-like run."""
     incar_path = os.path.join(path, 'INCAR')
     if os.path.isfile(incar_path):
         incar = Incar.from_file(incar_path)
@@ -96,9 +95,8 @@ def nebp(path):
     return False
 
 
-def mdp(path):
-    """Return True when PATH is an MD run.
-    """
+def mdp(path: str | os.PathLike[str]) -> bool:
+    """Return True when PATH is an MD run."""
     incar_path = os.path.join(path, 'INCAR')
     if os.path.isfile(incar_path):
         incar = Incar.from_file(incar_path)
@@ -107,7 +105,7 @@ def mdp(path):
     return False
 
 
-def clear_useless_vasp_files(path='.'):
+def clear_useless_vasp_files(path: str | os.PathLike[str] = '.') -> None:
     """Clear all the unusable VASP files.
     This includes empty CHG, CHGCAR, REPORT, and WAVECAR.
     """
@@ -118,7 +116,7 @@ def clear_useless_vasp_files(path='.'):
             f.unlink()
 
 
-def clear_vasp_outputs(path='.'):
+def clear_vasp_outputs(path: str | os.PathLike[str] = '.') -> None:
     """Clear all the VASP output files.
 
     Also removes compressed variants (``OUTCAR.gz``, ``vasprun.xml.gz``,
@@ -135,7 +133,7 @@ def clear_vasp_outputs(path='.'):
                 f.unlink()
 
 
-def contcar_to_poscar(path) -> None:
+def contcar_to_poscar(path: str | os.PathLike[str]) -> None:
     """When CONTCAR exists, copy it over to POSCAR in PATH.
     """
     contcar_path = os.path.join(path, 'CONTCAR')
@@ -145,7 +143,7 @@ def contcar_to_poscar(path) -> None:
         print(f"{short_path(path)}: Found CONTCAR file.  Copying over to POSCAR.")
 
 
-def put_vdw_kernel(path) -> None:
+def put_vdw_kernel(path: str | os.PathLike[str]) -> None:
     """Copy vdw_kernel.bindat from $VASP_PATH.
     1. Try $VASP_PATH/vdw_kernel.bindat
     2. Try $VASP_PATH/testsuite/tests/CuC_vdW/vdw_kernel.bindat
@@ -190,7 +188,7 @@ def clean_vasp_input(file_path: str) -> None:
         print(f'Cleaned file: {short_path(file_path)}')
 
 
-def clean_vasp_inputs(path='.') -> None:
+def clean_vasp_inputs(path: str | os.PathLike[str] = '.') -> None:
     """Clean all the VASP input files in PATH.
     """
     for file in ['POSCAR', 'INCAR', 'KPOINTS']:
@@ -198,7 +196,7 @@ def clean_vasp_inputs(path='.') -> None:
             clean_vasp_input(os.path.join(path, file))
 
 
-def potcar_symbols_map(path='.') -> dict[str, str]:
+def potcar_symbols_map(path: str | os.PathLike[str] = '.') -> dict[str, str]:
     """Return element -> full POTCAR name mapping for PATH.
 
     The mapping starts from the group-standard recommended
@@ -255,7 +253,8 @@ def potcar_symbols_map(path='.') -> dict[str, str]:
     return symbols
 
 
-def generate_potcar(path='.', keep_existing=False) -> None:
+def generate_potcar(
+        path: str | os.PathLike[str] = '.', keep_existing: bool = False) -> None:
     """Generate POTCAR from POSCAR file in PATH.
     When KEEP_EXISTING is True and POTCAR already exists, do not
     re-generate it.
@@ -304,16 +303,18 @@ def generate_potcar(path='.', keep_existing=False) -> None:
         os.unlink(potcar_path + '.old')
 
 
-def check_incar(path):
-    """Check INCAR in PATH.
-    """
+def check_incar(path: str | os.PathLike[str]) -> None:
+    """Check INCAR in PATH."""
     incar_path = os.path.join(path, 'INCAR')
     if os.path.isfile(incar_path):
         incar = Incar.from_file(incar_path)
         incar.check_params()
 
 
-def prepare_vasp_dir(path='.', keep_potcar=False, keep_poscar=False) -> None:
+def prepare_vasp_dir(
+        path: str | os.PathLike[str] = '.',
+        keep_potcar: bool = False,
+        keep_poscar: bool = False) -> None:
     """Prepare and cleanup VASP inputs in PATH.
     When KEEP_POTCAR is True, and POTCAR file already exist do not
     re-generate it.

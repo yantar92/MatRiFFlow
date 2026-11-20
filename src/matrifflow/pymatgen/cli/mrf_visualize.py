@@ -26,12 +26,14 @@
 
 
 """Visualization extension specific to MRF group."""
+import argparse
 import logging
 import os
 import re
 import warnings
 import itertools
 from pathlib import Path
+from argparse import Namespace
 from typing import Any, cast
 from termcolor import colored
 from alive_progress import alive_it
@@ -60,7 +62,7 @@ import matrifflow.pymatgen.io.atat as MRFatat
 logger = logging.getLogger(__name__)
 
 
-def add_args(parser):
+def add_args(parser: argparse.ArgumentParser) -> None:
     """Register subcommand arguments.
 
     Args:
@@ -134,7 +136,7 @@ voltage.out (fraction, voltage, capacity).""")
     voltage_add_args(parser_voltage)
 
 
-def neb_add_args(parser):
+def neb_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for neb visualization.
 
     Args:
@@ -143,7 +145,7 @@ def neb_add_args(parser):
     parser.set_defaults(func_derive=neb)
 
 
-def neb(args):
+def neb(args: Namespace) -> int:
     """Create NEB visualization.
 
     Args:
@@ -178,7 +180,7 @@ def neb(args):
     return 0
 
 
-def selective_dynamics_add_args(parser):
+def selective_dynamics_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for selective dynamics visualization.
 
     Args:
@@ -187,7 +189,7 @@ def selective_dynamics_add_args(parser):
     parser.set_defaults(func_derive=selective_dynamics)
 
 
-def selective_dynamics(args):
+def selective_dynamics(args: Namespace) -> None:
     """Visualize selective dynamics.
 
     Args:
@@ -205,7 +207,7 @@ def selective_dynamics(args):
                       + f"Saved selective_dynamics to {cif_name}")
 
 
-def atat_add_args(parser):
+def atat_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for ATAT visualization.
 
     Args:
@@ -469,7 +471,11 @@ def _atat_plot_calc_vs_fit_energies(
     ax.legend()
 
 
-def __blue_orrd_cmap(data_min, data_max, color='blue', split_val=0.1):
+def __blue_orrd_cmap(
+        data_min: float,
+        data_max: float,
+        color: str = 'blue',
+        split_val: float = 0.1) -> ListedColormap | None:
     """Return colormap with COLOR for 0..SPLIT_VAL and gradient for the rest.
     Return None when data_min == data_max.
     """
@@ -836,7 +842,7 @@ def _atat_1(
           + f"Saved ATAT plots to {output_png} and {output_svg}")
 
 
-def atat(args):
+def atat(args: Namespace) -> int:
     """Create ATAT visualization.
 
     Args:
@@ -853,7 +859,7 @@ def atat(args):
     return 0
 
 
-def hull_add_args(parser):
+def hull_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for formation energy hull visualization.
 
     Args:
@@ -1363,7 +1369,7 @@ def _hull_get_entries_from_pickle(
     return entries
 
 
-def hull(args):
+def hull(args: Namespace) -> int:
     """Plot formation energy hull from ATAT results.
 
     Args:
@@ -1499,7 +1505,7 @@ def hull(args):
     else:
         all_entries = entries
 
-        def _reduced_mass(structure) -> float:
+        def _reduced_mass(structure: Structure) -> float:
             """Reduced mass as calculated via Eq. 6 in Bartel et al. (2018)."""
             reduced_comp = structure.composition.reduced_composition
             n_elems = len(reduced_comp.elements)
@@ -1562,7 +1568,7 @@ def hull(args):
     return 0
 
 
-def voltage_add_args(parser):
+def voltage_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for voltage profile visualization.
 
     Args:
@@ -1654,7 +1660,7 @@ def voltage_add_args(parser):
     parser.set_defaults(func_derive=voltage)
 
 
-def voltage(args):
+def voltage(args: Namespace) -> int:
     """Plot voltage profile from ATAT results using pymatgen's battery analysis tools.
 
     Args:
@@ -1804,7 +1810,7 @@ def voltage(args):
     return 0
 
 
-def visualize(args):
+def visualize(args: Namespace) -> int:
     """Run the visualize subcommand.
 
     Args:

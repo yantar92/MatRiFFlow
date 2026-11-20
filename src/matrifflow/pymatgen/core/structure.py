@@ -31,9 +31,10 @@ import warnings
 import os
 from pathlib import Path
 import multiprocessing
-from multiprocessing import Pool
 from collections import Counter
-from collections.abc import Collection
+from collections.abc import Callable, Collection, Mapping, Sequence
+from multiprocessing import Pool
+from typing import Any
 import numpy as np
 from monty.io import zopen
 from pymatgen.core import PeriodicSite, Structure
@@ -63,7 +64,7 @@ class MRFStructure(Structure):
             primitive: bool = False,
             sort: bool = False,
             merge_tol: float = 0.0,
-            **kwargs,
+            **kwargs: Any,
     ) -> Self:
         """Read a structure from a file.
         Support everything from pymatgen.Structure and also
@@ -128,7 +129,7 @@ class MRFStructure(Structure):
             self,
             filename: PathLike = "",
             fmt: FileFormats | Literal["atat"] = "",
-            **kwargs) -> str:
+            **kwargs: Any) -> str:
         """Output the structure to a file or string.
         In addition to what pymatgen provides, write "str.out" file suitable
         for ATAT, replacing X0+ species with Vac and dropping occupancies.
@@ -296,7 +297,7 @@ def structure_diff(
         tol: float = 0.1,
         match_first: bool = True,
         match_species: bool = True
-):
+) -> list[np.ndarray]:
     """Compute translation vectors between two similar structures.
 
     Both structures must have the same number of sites and species.
@@ -349,9 +350,9 @@ def structure_diff(
 def structure_distance(
         structure1: Structure, structure2: Structure,
         tol: float = 0.1,
-        match_first=True,
-        max_dist=None,
-        norm=False,
+        match_first: bool = True,
+        max_dist: float | None = None,
+        norm: bool = False,
         match_species: bool = True) -> float:
     """Compute distance between two similar structures.
 
@@ -424,7 +425,7 @@ def structure_interpolate2(
         frac_tol: float = 0.5,
         center: bool | float = 0.5,
         match_first: bool = True,
-        **kwargs) -> list[Structure]:
+        **kwargs: Any) -> list[Structure]:
     """Interpolate between structures, avoiding atom collisions.
 
     Like ``Structure.interpolate``, but ensures no atoms in the
@@ -473,7 +474,7 @@ def structure_interpolate2(
     assert structure_is_valid2(structure1, frac_tol)
     assert structure_is_valid2(structure2, frac_tol)
 
-    def all_valid(images):
+    def all_valid(images: list[Structure]) -> int | bool:
         """Return True if all IMAGES are valid.
         Otherwise, return invalid image index."""
         for idx, image in enumerate(images):
@@ -489,12 +490,12 @@ def structure_interpolate2(
     # Otherwise, adjust the spacing manually to avoid collisions.
     image_scales = np.arange(nimages + 1) / nimages
 
-    def get_image(coord):
+    def get_image(coord: float) -> Structure:
         """Get image at COORD."""
         return structure1.interpolate(
             structure2, nimages=[coord], **kwargs)[0]
 
-    def search_valid(valid_coord, invalid_coord):
+    def search_valid(valid_coord: float, invalid_coord: float) -> float:
         """Find valid interpolation coordinate between VALID_COORD and INVALID_COORD.
         Assume that INVALID_COORD is an invalid image and that
         VALID_COORD is valid.
@@ -562,7 +563,7 @@ def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
     return True
 
 
-def reduce_supercell(structure):
+def reduce_supercell(structure: Structure) -> Structure:
     """Return the primitive cell of a supercell structure.
 
     Constrains alpha, beta, and gamma angles during reduction.
@@ -579,7 +580,7 @@ def reduce_supercell(structure):
     return reduced_structure
 
 
-def get_supercell_size(structure):
+def get_supercell_size(structure: Structure) -> tuple[int, int, int]:
     """Determine supercell dimensions relative to the primitive cell.
 
     Args:
@@ -604,7 +605,7 @@ class StructureDuplicateWarning(UserWarning):
 _GLOBAL_WORKER = None
 
 
-def _worker_wrapper(args):
+def _worker_wrapper(args: tuple[Structure, Structure]) -> bool:
     """Unpack arguments and call the global worker function.
 
     Args:
@@ -620,9 +621,9 @@ def _worker_wrapper(args):
 def structure_matches(
         struct: Structure,
         known_structs: list[Structure | None],
-        cmp_fun=None,
-        warn=False,
-        multithread=False):
+        cmp_fun: Callable[[Structure, Structure], bool] | None = None,
+        warn: bool = False,
+        multithread: bool | int = False) -> bool:
     """Check whether a structure is equivalent to any in a known list.
 
     Args:
@@ -643,7 +644,7 @@ def structure_matches(
 
     known_structs = [known for known in known_structs if known is not None]
 
-    def _warn(duplicate_of):
+    def _warn(duplicate_of: Structure) -> None:
         if warn:
             origin_path = struct.properties.get('origin_path')
             origin_path_2 = duplicate_of.properties.get('origin_path')
@@ -683,9 +684,9 @@ def structure_matches(
 
 def structure_remove_duplicates(
         structs: list[Structure | None],
-        cmp_fun=None,
-        warn=False,
-        multithread=False):
+        cmp_fun: Callable[[Structure, Structure], bool] | None = None,
+        warn: bool = False,
+        multithread: bool | int = False) -> list[Structure | None]:
     """Remove duplicate structures from a list, preserving order.
 
     Uses :func:`structure_matches` to test each structure against
@@ -725,7 +726,7 @@ def structure_perturb(
         distance: float,
         min_distance: float | None = None,
         frac_tol: float = 0.5,
-):
+) -> Structure:
     """Perturb sites randomly while respecting selective dynamics.
 
     Unlike ``pymatgen.core.Structure.perturb``, this function honours

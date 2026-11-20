@@ -30,6 +30,7 @@ from __future__ import annotations
 
 from typing import Protocol
 from pathlib import Path
+from typing import Any
 
 
 class SoftwareAdapter(Protocol):
@@ -78,7 +79,7 @@ class SoftwareAdapter(Protocol):
         path: Path, *,
         keep: set[str] | None = None,
         force: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Make *path* ready to run.
 

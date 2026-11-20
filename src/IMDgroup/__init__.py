@@ -9,7 +9,9 @@ during the transition.
 
 import importlib
 import importlib.abc
+import importlib.machinery
 import importlib.util
+import types
 import sys
 import warnings
 
@@ -49,18 +51,24 @@ class _AliasLoader(importlib.abc.Loader):
     def __init__(self, real_name: str):
         self._real_name = real_name
 
-    def create_module(self, spec):
+    def create_module(
+            self, spec: importlib.machinery.ModuleSpec) -> types.ModuleType:
         _ = spec # unused
         return importlib.import_module(self._real_name)
 
-    def exec_module(self, module):
+    def exec_module(self, module: types.ModuleType) -> None:
         _ = module # unused
         # Already executed by create_module()'s import_module() call.
         pass
 
 
 class _AliasFinder(importlib.abc.MetaPathFinder):
-    def find_spec(self, fullname, path=None, target=None):
+    def find_spec(
+            self,
+            fullname: str,
+            path: list[str] | None = None,
+            target: types.ModuleType | None = None
+    ) -> importlib.machinery.ModuleSpec | None:
         _, _ = path, target # unused
         if fullname == _LEGACY or not fullname.startswith(_LEGACY + "."):
             return None

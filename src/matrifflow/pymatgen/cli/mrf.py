@@ -33,6 +33,8 @@ import logging
 import os
 import sys
 import warnings
+from argparse import Namespace
+from typing import TextIO
 from termcolor import colored
 from matrifflow.common import configure_progress_output, suppress_spglib_warnings
 
@@ -138,7 +140,13 @@ def _user_error_types() -> tuple[type[BaseException], ...]:
     return (ValueError, OSError, MPRestError)
 
 
-def _showwarning(message, category, _filename, _lineno, file=None, _line=None):
+def _showwarning(
+        message: Warning | str,
+        category: type[Warning],
+        _filename: str,
+        _lineno: int,
+        file: TextIO | None = None,
+        _line: str | None = None) -> None:
     """Display warnings with coloured output."""
     _ = (_filename, _lineno, _line)  # suppress info-level "not accessed"
     output = colored(
@@ -151,7 +159,7 @@ def _showwarning(message, category, _filename, _lineno, file=None, _line=None):
 warnings.showwarning = _showwarning
 
 
-def setup_logger(args):
+def setup_logger(args: Namespace) -> None:
     """Configure logging based on verbosity flags.
 
     Args:
@@ -181,7 +189,7 @@ def setup_logger(args):
         logging.info("Setting debug level to: INFO (writing to file)")
 
 
-def main():
+def main() -> int:
     """Entry point for the ``mrf`` command.
 
     Returns:
@@ -267,7 +275,7 @@ def main():
         return 1
 
 
-def main_deprecated_imdg():
+def main_deprecated_imdg() -> int:
     """Deprecated ``imdg`` entry point: forwards to :func:`main`.
 
     Kept so the legacy ``imdg`` console script keeps working after the

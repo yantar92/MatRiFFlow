@@ -34,6 +34,7 @@ import shutil
 import subprocess
 import tarfile
 import time
+from argparse import Namespace
 from pathlib import Path
 from termcolor import colored
 
@@ -150,7 +151,7 @@ def _backup_current_dir(path: Path, excludes: list[str]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def dispatch_run(args, adapter: SoftwareAdapter) -> int:
+def dispatch_run(args: Namespace, adapter: SoftwareAdapter) -> int:
     """Run the common submission pipeline for *adapter*.
 
     Parameters

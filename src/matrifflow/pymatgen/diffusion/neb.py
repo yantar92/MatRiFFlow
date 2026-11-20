@@ -29,9 +29,9 @@
 
 import logging
 import warnings
+from collections.abc import Callable, Sequence
 from multiprocessing import Pool
-from collections.abc import Sequence
-from typing import cast
+from typing import Any, cast
 from alive_progress import alive_bar
 import numpy as np
 import networkx as nx
@@ -137,8 +137,9 @@ class NEB_Graph(MultiDiGraph):
                         self.__add_edge(from_idx, to_idx, vec2)
                 progress_bar()  # pylint: disable=not-callable
 
-    def __add_edge(self, from_idx: int, to_idx: int, vector):
-        def get_distance(vec):
+    def __add_edge(
+            self, from_idx: int, to_idx: int, vector: Sequence[np.ndarray]) -> None:
+        def get_distance(vec: np.ndarray) -> float:
             distance = 0
             for idx, v in enumerate(vec):
                 # When we consider self-self paths, there is no way
@@ -179,7 +180,8 @@ class NEB_Graph(MultiDiGraph):
     def _get_vec(
             from_idx: int, to_idx: int,
             from_struct: Structure, to_struct: Structure,
-            progress_bar=None):
+            progress_bar: Callable[[], None] | None = None
+    ) -> tuple[int, int, list[np.ndarray]]:
         """Compute minimal vector connecting from_struct and to_struct.
         Return (from_idx, to_idx, vec).
         """
@@ -188,13 +190,13 @@ class NEB_Graph(MultiDiGraph):
             progress_bar()  # pylint: disable=not-callable
         return (from_idx, to_idx, vec)
 
-    def __get_all_vecs(self):
+    def __get_all_vecs(self) -> list[tuple[int, int, list[np.ndarray]]]:
         """Compute all structure diff vectors for the NEB graph."""
         if self.multithread:
             return self._compute_vecs_multithreaded()
         return self._compute_vecs_singlethreaded()
 
-    def _compute_vecs_multithreaded(self):
+    def _compute_vecs_multithreaded(self) -> list[tuple[int, int, list[np.ndarray]]]:
         """Compute vectors using multithreading."""
         with alive_bar(
                 None, title='Computing distance matrix') as progress_bar:
@@ -209,7 +211,7 @@ class NEB_Graph(MultiDiGraph):
                      if from_idx <= to_idx]
                 )
 
-    def _compute_vecs_singlethreaded(self):
+    def _compute_vecs_singlethreaded(self) -> list[tuple[int, int, list[np.ndarray]]]:
         """Compute vectors without multithreading."""
         with alive_bar(
                 int(len(self.structures) ** 2 / 2),
@@ -222,7 +224,7 @@ class NEB_Graph(MultiDiGraph):
                 if from_idx <= to_idx
             ]
 
-    def connected(self, idxs: list[int] | None = None):
+    def connected(self, idxs: list[int] | None = None) -> bool:
         """Check whether the graph is connected.
 
         Args:
@@ -249,7 +251,7 @@ class NEB_Graph(MultiDiGraph):
 
         return all(visited[idx] for idx in idxs)
 
-    def diffusion_path_infinite(self, start_idx):
+    def diffusion_path_infinite(self, start_idx: int) -> bool:
         """Check whether a vertex lies on an infinite diffusion path.
 
         An infinite path is a cycle whose sum of displacement vectors
@@ -272,7 +274,10 @@ class NEB_Graph(MultiDiGraph):
         logger.debug(
             "Searching infinite diffusion paths including %d", start_idx)
 
-        def _check_cycle(cycle, acc=0, full_cycle=None):
+        def _check_cycle(
+                cycle: list[int],
+                acc: np.ndarray | float = 0,
+                full_cycle: list[int] | None = None) -> bool:
             if full_cycle is None:
                 full_cycle = cycle
 
@@ -292,7 +297,7 @@ class NEB_Graph(MultiDiGraph):
 
             return False
 
-        def _debug_found(cycle, cached=False):
+        def _debug_found(cycle: list[int], cached: bool = False) -> None:
             logger.debug(
                 "%sFound infinite diffusion path for %d: %s",
                 "(cached) " if cached else "",
@@ -367,7 +372,8 @@ class NEB_Graph(MultiDiGraph):
             _checked.append(struct.properties['_orig_idx'])
         return True
 
-    def get_min_cutoff(self, idx_connected: list[int] | None = None):
+    def get_min_cutoff(
+            self, idx_connected: list[int] | None = None) -> float:
         """Find the smallest edge distance cutoff that keeps the graph connected.
 
         Also requires that all vertices be on infinite diffusion paths
@@ -395,7 +401,7 @@ class NEB_Graph(MultiDiGraph):
         with alive_bar(
                 None, title='Auto-detecting cutoff'):
 
-            def bfs1(queue, dist_cutoff):
+            def bfs1(queue: list[int], dist_cutoff: float) -> None:
                 while len(queue) > 0:
                     from_idx = queue.pop(0)
                     if not visited[from_idx]:
@@ -499,7 +505,7 @@ def _remove_duplicates(
         len(structures))
 
     if idxs is not None:
-        def __check_idxs(struct1, struct2):
+        def __check_idxs(struct1: Structure, struct2: Structure) -> bool:
             for idx in idxs:
                 if struct1[idx].distance(struct2[idx]) > 0.5:
                     return False
@@ -674,7 +680,7 @@ def get_neb_pairs(
             n_edges += 1
     logger.info("Found %d paths shorter than cutoff (%f)", n_edges, cutoff)
 
-    def _connected_and_infinite():
+    def _connected_and_infinite() -> bool:
         is_connected = neb_graph.connected(low_en_idxs)
         is_infinite = False
         if is_connected:
@@ -807,7 +813,7 @@ def get_neb_pairs(
     # Sort by lentgh
     unique_edges = sorted(unique_edges)
 
-    def get_pair(from_idx, to_idx, key):
+    def get_pair(from_idx: int, to_idx: int, key: int) -> tuple[Structure, Structure]:
         origin_struct = all_clones[from_idx]
         target_struct = origin_struct.copy()
         for idx, v in enumerate(

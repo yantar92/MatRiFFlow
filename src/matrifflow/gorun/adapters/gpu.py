@@ -36,6 +36,7 @@ RUNFILE check.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +161,7 @@ class GpuAdapter:
         path: Path, *,
         keep: set[str] | None = None,
         force: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """No default preparation.  Override in derived classes."""
         pass

@@ -26,26 +26,31 @@
 
 
 """mrf sub-command to compare VASP inputs/outputs."""
+import argparse
 import logging
+import math
 import os
 import shutil
-import math
 import warnings
+from argparse import Namespace
+from xml.etree.ElementTree import ParseError
+
 from alive_progress import alive_bar
-from termcolor import colored
+from pymatgen.analysis.structure_matcher import StructureMatcher
+from pymatgen.core import Structure
+from pymatgen.io.vasp.inputs import Poscar
 from rich.console import Console
 from rich.text import Text
-from xml.etree.ElementTree import ParseError
-from pymatgen.io.vasp.inputs import Poscar
-from pymatgen.analysis.structure_matcher import StructureMatcher
+from termcolor import colored
+
+from matrifflow.common import groupby_cmp
 from matrifflow.pymatgen.io.vasp.inputs import Incar, INCAR_GROUP_IGNORE_FIELDS
 from matrifflow.pymatgen.io.vasp.vaspdir import MRFVaspDir
-from matrifflow.common import groupby_cmp
 
 logger = logging.getLogger(__name__)
 
 
-def structure_add_args(parser):
+def structure_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for structure comparison.
 
     Args:
@@ -82,7 +87,10 @@ def structure_add_args(parser):
     )
 
 
-def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
+def _read_structures(
+        dir_list: list[str],
+        force_poscar: bool = False,
+        force_vasprun: bool = False) -> list[Structure]:
     """Read structures from DIR_LIST.
 
     ``--poscar`` forces reading POSCAR files; ``--vasprun`` forces
@@ -104,7 +112,7 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
       When a structure is read from vasprun.xml, it will also have
       'final_energy' property set to the final structure energy.
     """
-    def read_vasprun(vaspdir):
+    def read_vasprun(vaspdir: str) -> Structure:
         logger.info("Reading vasprun.xml from %s", vaspdir)
         run = MRFVaspDir(vaspdir)['vasprun.xml']
         if run is None:
@@ -114,7 +122,7 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
         res_structure.properties['final_energy'] = run.final_energy
         return res_structure
 
-    def read_poscar(vaspdir):
+    def read_poscar(vaspdir: str) -> Structure:
         logger.info("Reading POSCAR from %s", vaspdir)
         poscar = Poscar.from_file(os.path.join(vaspdir, "POSCAR"))
         res_structure = poscar.structure
@@ -164,7 +172,8 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
     return structures
 
 
-def _copy_structures_to(structures, directory):
+def _copy_structures_to(
+        structures: list[Structure], directory: str) -> None:
     """Copy source directories of structures to a target directory.
 
     Args:
@@ -188,7 +197,7 @@ def _copy_structures_to(structures, directory):
           colored('done', 'green'))
 
 
-def diff_structures(args):
+def diff_structures(args: Namespace) -> None:
     """Compare structures.
 
     Args:
@@ -198,7 +207,7 @@ def diff_structures(args):
     structures = _read_structures(sorted(args.dirs), args.poscar, args.vasprun)
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
 
-    def _structures_eq(str1, str2):
+    def _structures_eq(str1: Structure, str2: Structure) -> bool:
         """Compare structures STR1 and STR2 for equality.
         Return True when they are equal.
         """
@@ -215,7 +224,7 @@ def diff_structures(args):
             return True
         return False
 
-    def _structure_name(struct):
+    def _structure_name(struct: Structure) -> str:
         """Get directory."""
         return struct.properties['source_dir']
 
@@ -251,7 +260,7 @@ def diff_structures(args):
         _copy_structures_to([group[0] for group in groups], args.copy_to)
 
 
-def incar_add_args(parser):
+def incar_add_args(parser: argparse.ArgumentParser) -> None:
     """Setup parser arguments for incar comparison.
 
     Args:
@@ -260,7 +269,7 @@ def incar_add_args(parser):
     parser.set_defaults(func_diff=diff_incar)
 
 
-def _ignored_params_summary(groups):
+def _ignored_params_summary(groups: list[list[Incar]]) -> list[str]:
     """Collect distinct values of grouping-ignored INCAR tags.
 
     Args:
@@ -286,7 +295,11 @@ def _ignored_params_summary(groups):
         for field, vals in seen.items()]
 
 
-def print_incar_groups(common_incar, groups, console=None, max_names=None):
+def print_incar_groups(
+        common_incar: Incar,
+        groups: list[list[Incar]],
+        console: Console | None = None,
+        max_names: int | None = None) -> None:
     """Print common INCAR parameters (condensed) and per-group differences.
 
     Args:
@@ -333,7 +346,7 @@ def print_incar_groups(common_incar, groups, console=None, max_names=None):
         
 
 
-def diff_incar(args):
+def diff_incar(args: Namespace) -> int:
     """Handle diff commands.
 
     Args:
@@ -363,7 +376,7 @@ def diff_incar(args):
     return 0
 
 
-def add_args(parser):
+def add_args(parser: argparse.ArgumentParser) -> None:
     """Register subcommand arguments.
 
     Args:
@@ -406,7 +419,7 @@ settings and per-group differences.""")
     incar_add_args(parser_incar)
 
 
-def diff(args):
+def diff(args: Namespace) -> int:
     """Run the diff subcommand.
 
     Args:

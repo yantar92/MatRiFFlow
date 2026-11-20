@@ -29,7 +29,7 @@
 
 import logging
 from collections.abc import Iterable, Sequence
-from typing import cast
+from typing import Any, cast
 from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
@@ -80,7 +80,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             reduce_supercell: bool = True,
             matcher: StructureMatcher | None =
             StructureMatcher(attempt_supercell=True, scale=False),
-            multithread=False
+            multithread: bool | int = False
     ):
         """Initialise the insertion transformation.
 
@@ -151,7 +151,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         self.matcher = matcher
         self.multithread = multithread
 
-    def _get_site_grid(self, structure: Structure):
+    def _get_site_grid(self, structure: Structure) -> list[np.ndarray]:
         """Generate a list of candidate fractional coordinates.
                 Args:
                 structure (Strcuture): Structure to put candidates into
@@ -199,7 +199,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             0.0, reduced_structure.lattice.c / structure.lattice.c,
             self.step / structure.lattice.c)
 
-        def _random(scale):
+        def _random(scale: float) -> float:
             if self.step_noise is None:
                 return 0
             return self.step_noise * scale\
@@ -217,7 +217,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         return [[x + xrandom(), y + yrandom(), z + zrandom()]
                 for x in xrange for y in yrange for z in zrange]
 
-    def _get_angle_grid(self):
+    def _get_angle_grid(self) -> list[list[float]]:
         """Generate a list of candidate Euler angles to rotate molecule.
         Args:
           molecule (Molecule): Molecule to rotate
@@ -234,14 +234,17 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 for beta in angrange
                 for gamma in angrange]
 
-    def _get_largest_radius(self, obj) -> float:
+    def _get_largest_radius(self, obj: Structure | Molecule) -> float:
         """Find the largest atomic radius across species in structurelike.
         obj is a Molecule or Structure.
         """
         return max(s.atomic_radius for s in obj.species)
 
-    def _check_proximity(self, structure: Structure, site_index: int,
-                         cutoff: float | None = None):
+    def _check_proximity(
+            self,
+            structure: Structure,
+            site_index: int,
+            cutoff: float | None = None) -> bool:
         """Check whether a site is far enough from all other sites.
 
         "Far enough" means the distance exceeds
@@ -290,7 +293,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 return False
         return True
 
-    def _check_molecule_proximity(self, structure1, structure2):
+    def _check_molecule_proximity(
+            self, structure1: Structure, structure2: Structure) -> bool:
         """Check whether two molecule-only structures are distinct placements.
 
         Args:
@@ -327,7 +331,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 return True
         return False
 
-    def rotate_molecule_euler(self, euler_angle: Sequence[float]):
+    def rotate_molecule_euler(
+            self, euler_angle: Sequence[float]) -> Molecule:
         """Rotate the molecule by a triplet of extrinsic Euler angles.
 
         Args:
@@ -356,9 +361,9 @@ class InsertMoleculeTransformation(AbstractTransformation):
             structure: Structure,
             coords: Sequence[float],
             euler_angle: Sequence[float] | None = None,
-            known_inserts=None,
-            cutoff=None
-    ):
+            known_inserts: list[Structure] | None = None,
+            cutoff: float | None = None
+    ) -> Structure | None:
         """Insert the molecule at a specific position and rotation.
 
         The molecule is rotated around its first atom, then placed at
@@ -454,7 +459,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
 
     def _generate_inserts(
             self, structure: Structure,
-            limit: int | None = None):
+            limit: int | None = None) -> list[Structure]:
         """Generate all valid molecule insertion configurations.
 
         Args:
@@ -496,7 +501,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
              as progress_bar:
 
             def append_inserts_fixed_rotation(
-                    euler_angle: Sequence[float] | None = None):
+                    euler_angle: Sequence[float] | None = None) -> None:
                 """Insert rotated molecule into all possible positions.
                 Modify structure_inserts by side effect, adding all
                 possible positions of self.molecule into structure with
