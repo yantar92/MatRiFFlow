@@ -50,7 +50,7 @@ class MRFASEVasp(Vasp):
         self,
         atoms: Atoms,
         setups: dict[str, str] | str | None = None,
-        special_setups: dict[int, dict[str, str]] | None = None,
+        special_setups = None,
     ) -> list[str]:
         """Return an empty pseudopotential path list.
 

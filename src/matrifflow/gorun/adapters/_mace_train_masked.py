@@ -47,7 +47,6 @@ from __future__ import annotations
 import logging
 
 import torch
-from mace.data import AtomicData
 
 import mace.modules.loss as mace_loss
 from mace.tools.scatter import scatter_sum
@@ -76,7 +75,7 @@ class MaskedEnergyForcesStressLoss(
 
     def forward(
         self,
-        ref: AtomicData,
+        ref,
         pred: dict[str, torch.Tensor],
         ddp: bool | None = None,
     ) -> torch.Tensor:
@@ -100,7 +99,7 @@ mace_loss.WeightedEnergyForcesStressLoss = MaskedEnergyForcesStressLoss
 ## Masked helpers
 
 def _masked_energy(
-    ref: AtomicData,
+    ref,
     pred: dict[str, torch.Tensor],
     mask: torch.Tensor,
     ddp: bool | None,
@@ -140,7 +139,7 @@ def _masked_energy(
 
 
 def _masked_forces(
-    ref: AtomicData,
+    ref,
     pred: dict[str, torch.Tensor],
     mask: torch.Tensor,
     ddp: bool | None,
@@ -168,7 +167,7 @@ def _masked_forces(
 
 
 def _masked_stress(
-    ref: AtomicData,
+    ref,
     pred: dict[str, torch.Tensor],
     mask: torch.Tensor,
     ddp: bool | None,

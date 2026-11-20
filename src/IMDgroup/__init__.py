@@ -13,6 +13,7 @@ import importlib.machinery
 import importlib.util
 import types
 import sys
+from typing import Sequence
 import warnings
 
 _LEGACY = "IMDgroup"
@@ -66,7 +67,7 @@ class _AliasFinder(importlib.abc.MetaPathFinder):
     def find_spec(
             self,
             fullname: str,
-            path: list[str] | None = None,
+            path: Sequence[str] | None = None,
             target: types.ModuleType | None = None
     ) -> importlib.machinery.ModuleSpec | None:
         _, _ = path, target # unused

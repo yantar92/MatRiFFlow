@@ -345,7 +345,7 @@ def perturb_add_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def perturb(args: Namespace) -> int:
+def perturb(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create perturbed input.
 
     Args:
@@ -409,7 +409,7 @@ def strain_add_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def strain(args: Namespace) -> int:
+def strain(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create strained input.
 
     Args:
@@ -495,7 +495,7 @@ def relax_add_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def relax(args: Namespace) -> int:
+def relax(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create relaxation setup.
 
     Args:
@@ -561,7 +561,7 @@ def supercell_add_args(parser: argparse.ArgumentParser) -> None:
         default=10000)
 
 
-def supercell(args: Namespace) -> int:
+def supercell(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create supercell.
 
     Args:
@@ -600,7 +600,7 @@ def functional_add_args(parser: argparse.ArgumentParser) -> None:
         type=str)
 
 
-def functional(args: Namespace) -> int:
+def functional(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create custom functional setup.
 
     Args:
@@ -638,7 +638,7 @@ def fix_add_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def fix(args: Namespace) -> int:
+def fix(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Apply selective dynamics constraints.
 
     Args:
@@ -717,7 +717,7 @@ def incar_add_args(parser: argparse.ArgumentParser) -> None:
         type=str)
 
 
-def incar(args: Namespace) -> int:
+def incar(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create custom incar setup.
 
     Args:
@@ -788,7 +788,7 @@ def potcar_add_args(parser: argparse.ArgumentParser) -> None:
         type=str)
 
 
-def potcar(args: Namespace) -> int:
+def potcar(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create custom POTCAR setup.
 
     Args:
@@ -851,7 +851,7 @@ def kpoints_add_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def kpoints(args: Namespace) -> int:
+def kpoints(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create custom kpoints setup.
 
     Args:
@@ -888,7 +888,7 @@ def scf_add_args(parser: argparse.ArgumentParser) -> None:
     parser.set_defaults(func_derive=scf)
 
 
-def scf(args: Namespace) -> int:
+def scf(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create SCF setup.
 
     Args:
@@ -956,7 +956,7 @@ When negative number, use random sampling instead of scanning a grid""",
         action="store_true")
 
 
-def insert(args: Namespace) -> int:
+def insert(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create setup for inserted molecules/atoms.
 
     Args:
@@ -1019,7 +1019,7 @@ def delete_add_args(parser: argparse.ArgumentParser) -> None:
         type=str)
 
 
-def delete(args: Namespace) -> int:
+def delete(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Delete a site/sites from structure.
 
     Args:
@@ -1073,7 +1073,7 @@ def fill_add_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def fill(args: Namespace) -> int:
+def fill(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create a structure file with all insertion sites filled.
 
     Take prototype structure and a set of relaxed configurations with
@@ -1162,7 +1162,7 @@ def atat_add_args(parser: argparse.ArgumentParser) -> None:
         type=float)
 
 
-def atat(args: Namespace) -> int:
+def atat(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create ATAT input according to str.out.
 
     Preserve selective dynamics settings from the original POSCAR.
@@ -1279,7 +1279,7 @@ def neb_add_args(parser: argparse.ArgumentParser) -> None:
         default=4)
 
 
-def neb(args: Namespace) -> int:
+def neb(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create NEB input.
 
     Args:
@@ -1491,7 +1491,7 @@ def _append_valid(
     return structure
 
 
-def neb_diffusion(args: Namespace) -> int:
+def neb_diffusion(args: Namespace) -> dict[str, list[MRFDerivedInputSet]]:
     """Create NEB input for all possible diffusion paths.
 
     Args:
