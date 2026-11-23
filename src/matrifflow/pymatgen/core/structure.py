@@ -642,7 +642,8 @@ def structure_matches(
     if cmp_fun is None:
         cmp_fun = StructureMatcher(attempt_supercell=True, scale=False).fit
 
-    known_structs = [known for known in known_structs if known is not None]
+    _known_structs: list[Structure] = [
+        known for known in known_structs if known is not None]
 
     def _warn(duplicate_of: Structure) -> None:
         if warn:
@@ -668,14 +669,13 @@ def structure_matches(
         if isinstance(multithread, int) and not isinstance(multithread, bool):
             cpus = min(multithread, cpus)
         with Pool(processes=cpus) as pool:
-            tasks = [(struct, known) for known in known_structs]
+            tasks = [(struct, known) for known in _known_structs]
             for idx, is_match in enumerate(pool.imap(_worker_wrapper, tasks)):
                 if is_match:
-                    _warn(known_structs[idx])
+                    _warn(_known_structs[idx])
                     return True
     else:
-        for known in known_structs:
-            assert known is not None
+        for known in _known_structs:
             if cmp_fun(struct, known):
                 _warn(known)
                 return True
