@@ -360,9 +360,16 @@ def _get_neb_summary(vaspdir: MRFVaspDir) -> str:
     def get_dists(structs: list[Structure | None]) -> str:
         dists = [
             structure_distance(str1, str2, tol=0)
+            if str1 is not None and str2 is not None else None
             for str1, str2 in zip(structs, structs[1:])]
         parts = []
         for idx, dist in enumerate(dists):
+            if dist is None:
+                # An image dir may exist without POSCAR/CONTCAR (e.g. a
+                # partially written input set); the distance is unknown,
+                # so keep the position and mark it instead of crashing.
+                parts.append(f"{idx + 1:02d}: N/A")
+                continue
             value = f"{dist:.2f}\u00c5"
             if np.isclose(dist, 0):
                 value = f"[red]{value}[/red]"

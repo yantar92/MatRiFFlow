@@ -97,6 +97,18 @@ def test_get_neb_summary_end_images_without_contcar(tmp_path) -> None:
     assert "IMAGE DISTANCES" in summary
 
 
+def test_get_neb_summary_missing_structure_in_image(tmp_path) -> None:
+    """An image dir without POSCAR/CONTCAR renders N/A instead of crashing."""
+    (tmp_path / "INCAR").write_text("IMAGES = 2\n")
+    for name, x in (("00", 0.0), ("01", 0.1), ("02", 0.2)):
+        _write_structure(tmp_path / name, x=x)
+    (tmp_path / "03").mkdir()
+
+    summary = _get_neb_summary(MRFVaspDir(str(tmp_path)))
+
+    assert "N/A" in summary
+
+
 ## print_seconds
 
 
