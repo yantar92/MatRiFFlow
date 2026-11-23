@@ -185,7 +185,10 @@ class MRFVaspDir(Mapping, MSONable):
     # Regex patterns matched with re.fullmatch against file names to
     # select the parser class.  Patterns (rather than fixed names) are
     # needed for files with variable names, such as VASP log files.
-    FILE_MAPPINGS: typing.ClassVar = {
+    # The values are typed loosely on purpose: the parsers share no
+    # common base class and not all of them provide ``from_file``, so
+    # dispatch in ``__getitem__`` is duck-typed.
+    FILE_MAPPINGS: typing.ClassVar[dict[str, type[typing.Any]]] = {
         r'INCAR': Incar,
         r'POSCAR': pmgPoscar,
         r'CONTCAR': pmgPoscar,
