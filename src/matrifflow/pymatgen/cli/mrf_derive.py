@@ -1545,9 +1545,12 @@ def neb_diffusion(args: Namespace) -> dict[str, list[MRFNEBVaspInputSet]]:
                 for site in new_sites:
                     _append_valid(site, struct, args.frac_tol)
 
-    pairs, unfiltered_pairs = get_neb_pairs(
+    pairs, unfiltered_pairs = cast(
+        tuple[list[tuple[Structure, Structure]], list[tuple[Structure, Structure]]],
+        get_neb_pairs(
         structures, prototype, args.cutoff, args.remove_compound,
-        multithread=args.multithread, return_unfiltered=True, limit=args.limit)
+        multithread=args.multithread,
+        return_unfiltered=True, limit=args.limit))
 
     result = __neb_diffusion_get_inputsets(pairs, args)
     if args.write_graph:
