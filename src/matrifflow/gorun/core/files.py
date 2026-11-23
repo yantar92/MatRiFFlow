@@ -133,7 +133,6 @@ def maybe_regenerate(
     if filenames and all(
         (f in keep) and (path / f).is_file() for f in filenames
     ):
-        filepath = path / filenames[0]
         if validate is not None and not validate():
             print(f"Existing {label} is invalid; regenerating")
             regenerate()

@@ -35,7 +35,6 @@ from typing import Any
 
 from termcolor import colored
 
-from matrifflow.gorun.adapters.base import SoftwareAdapter
 from matrifflow.gorun.cleanVASP import (
     check_incar,
     clean_vasp_inputs,

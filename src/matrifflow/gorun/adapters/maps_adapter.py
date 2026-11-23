@@ -30,10 +30,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-import subprocess
 import shutil
 
-from matrifflow.gorun.adapters.base import SoftwareAdapter
 from matrifflow.gorun.adapters.vasp import VaspAdapter
 
 
