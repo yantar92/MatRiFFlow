@@ -30,6 +30,7 @@ from __future__ import annotations
 
 from ase.atoms import Atoms
 from ase.calculators.vasp import Vasp
+from collections.abc import Sequence
 
 
 class MRFASEVasp(Vasp):
@@ -50,7 +51,7 @@ class MRFASEVasp(Vasp):
         self,
         atoms: Atoms,
         setups: dict[str, str] | str | None = None,
-        special_setups = None,
+        special_setups: Sequence[int] = (),
     ) -> list[str]:
         """Return an empty pseudopotential path list.
 
@@ -58,6 +59,7 @@ class MRFASEVasp(Vasp):
         calculator must not resolve or read pseudopotentials from
         ``VASP_PP_PATH``.
         """
+        _, _, _ = atoms, setups, special_setups  # ignore
         return []
 
     def write_potcar(
@@ -66,6 +68,7 @@ class MRFASEVasp(Vasp):
         directory: str = './',
     ) -> None:
         """No-op: gorun has already written POTCAR."""
+        _, _ = suffix, directory  # ignored
         return None
 
     def default_nelect_from_ppp(self) -> float:
