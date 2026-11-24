@@ -486,7 +486,7 @@ def __blue_orrd_cmap(
     frac = (split_val - data_min) / (data_max - data_min)
     n_fixed_color = int(frac * n)
     n_orrd = n - n_fixed_color
-    greens = np.tile([to_rgba(color)], (n_fixed_color, 1))
+    greens = np.tile(np.array(to_rgba(color)), (n_fixed_color, 1))
     orrd = plt.get_cmap("OrRd", n_orrd)
     orrd_colors = orrd(np.linspace(0, 1, n_orrd))
     return ListedColormap(np.vstack([greens, orrd_colors]))
@@ -1002,7 +1002,7 @@ def _to_subscript(text: str) -> str:
 def _hull_get_entries_recursively(
         path: Path,
         include: str | None = None,
-        exclude: str | None = r'gorun_\d+') -> list:
+        exclude: str | None = r'gorun_\d+') -> list[ComputedStructureEntry]:
     """Scan PATH for VASP directories and return a list of ComputedStructureEntry.
 
     Uses MRFVaspDir.read_vaspdirs to find VASP directories recursively.
@@ -1313,7 +1313,7 @@ def _hull_get_entries_from_pickle(
         structure_column: str = "structure",
         energy_column: str = "total_energy",
         id_column: str | None = "fold_id",
-        filter_expr: str | None = None) -> list:
+        filter_expr: str | None = None) -> list[ComputedStructureEntry]:
     """Read structures and energies from a pickle file and return ComputedStructureEntry list.
 
     The pickle file must contain a DataFrame with ASE Atoms objects in
@@ -1473,6 +1473,7 @@ def hull(args: Namespace) -> int:
         return 1
 
     matrix_element = next(iter(matrix_elements))
+    assert isinstance(matrix_element, Element)
     matrix_entry = min(pure_matrix_entries, key=lambda e: e.energy_per_atom)
     ion_entry = min(pure_ion_entries, key=lambda e: e.energy_per_atom)
     print(f"Using {matrix_entry.composition.reduced_formula} as matrix reference "
@@ -1505,9 +1506,9 @@ def hull(args: Namespace) -> int:
     else:
         all_entries = entries
 
-        def _reduced_mass(structure: Structure) -> float:
+        def _reduced_mass(composition: Composition) -> float:
             """Reduced mass as calculated via Eq. 6 in Bartel et al. (2018)."""
-            reduced_comp = structure.composition.reduced_composition
+            reduced_comp = composition.reduced_composition
             n_elems = len(reduced_comp.elements)
             elem_dict = reduced_comp.get_el_amt_dict()
             denominator = (n_elems - 1) * reduced_comp.num_atoms
@@ -1525,7 +1526,7 @@ def hull(args: Namespace) -> int:
             if entry.composition.reduced_composition.num_atoms == 1:
                 reduced_mass = entry.composition.reduced_composition.weight
             else:
-                reduced_mass = _reduced_mass(entry.structure)
+                reduced_mass = _reduced_mass(entry.composition)
             sisso_corr = (
                 entry.composition.num_atoms
                 * GibbsComputedStructureEntry._g_delta_sisso(

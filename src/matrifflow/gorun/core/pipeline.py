@@ -36,6 +36,7 @@ import tarfile
 import time
 from argparse import Namespace
 from pathlib import Path
+from typing import Any
 from termcolor import colored
 
 from matrifflow.gorun.slurm import (
@@ -184,7 +185,7 @@ def dispatch_run(args: Namespace, adapter: SoftwareAdapter) -> int:
             print(colored(missing_config_message(), "red"))
             return 1
         server = None
-        server_config: dict = {}
+        server_config: dict[str, Any] = {}
     else:
         server = resolve_server(config)
         if server is not None:

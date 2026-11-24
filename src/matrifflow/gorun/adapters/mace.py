@@ -72,7 +72,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 from typing import Any, cast
 
 import pandas as pd
@@ -116,7 +115,7 @@ def _read_structures(filepath: str) -> list[Atoms]:
     )
 
 
-def _strip_constraints(structures: list) -> int:
+def _strip_constraints(structures: list[Atoms]) -> int:
     """Remove ASE constraints from *structures* in place.
 
     Forces, energy, and stress are preserved via
@@ -520,7 +519,7 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
                 "Required files not found: " + ", ".join(missing)
             )
 
-    def setup_commands(self, server_config: dict) -> str:
+    def setup_commands(self, server_config: dict[str, Any]) -> str:
         """Read MACE environment, falling back to ``[gpu]`` config.
 
         Looks for ``server_config["mace"]["setup"]`` first.  If that
@@ -662,7 +661,7 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
         print(f"  train: {len(train)} structures → {train_xyz}")
         print(f"  val:   {len(val)} structures → {val_xyz}")
 
-    def _read_and_clean(self, filepath: str) -> list:
+    def _read_and_clean(self, filepath: str) -> list[Atoms]:
         """Read structures from *filepath* and strip constraints."""
         print(f"Reading {filepath} ...")
         structures = _read_structures(filepath)
@@ -700,7 +699,7 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
     # Script generation
     # ------------------------------------------------------------------
 
-    def generate_run_commands(self, path: Path, server_config: dict | None = None) -> str:
+    def generate_run_commands(self, path: Path, server_config: dict[str, Any] | None = None) -> str:
         """Return a two-stage bash body, or a RUNFILE if present.
 
         If ``RUNFILE.sh`` or ``RUNFILE.py`` exists in *path*, its

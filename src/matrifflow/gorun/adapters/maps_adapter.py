@@ -125,7 +125,7 @@ class MapsAdapter:
     # Script generation
     # ------------------------------------------------------------------
 
-    def setup_commands(self, server_config: dict) -> str:
+    def setup_commands(self, server_config: dict[str, Any]) -> str:
         """Inherit VASP environment from config.
 
         The maps wrapper needs the same module environment as VASP
@@ -135,7 +135,7 @@ class MapsAdapter:
         """
         return VaspAdapter().setup_commands(server_config)
 
-    def generate_run_commands(self, path: Path, server_config: dict | None = None) -> str:
+    def generate_run_commands(self, path: Path, server_config: dict[str, Any] | None = None) -> str:
         """Return the maps+pollmach wrapper script.
 
         Exports ``GORUN_SKIP_SETUP=1`` so every child gorun process

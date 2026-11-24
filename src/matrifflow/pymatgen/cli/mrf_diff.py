@@ -281,7 +281,7 @@ def _ignored_params_summary(groups: list[list[Incar]]) -> list[str]:
         first-seen order.
     """
     ignored = [f for f in INCAR_GROUP_IGNORE_FIELDS if f != 'SYSTEM']
-    seen: dict[str, list] = {}
+    seen: dict[str, list[object]] = {}
     for group in groups:
         for incar in group:
             for field in ignored:

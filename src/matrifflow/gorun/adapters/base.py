@@ -94,7 +94,7 @@ class SoftwareAdapter(Protocol):
         ...
 
     # -- script generation --
-    def setup_commands(self, server_config: dict) -> str:
+    def setup_commands(self, server_config: dict[str, Any]) -> str:
         """Return shell commands to configure the environment.
 
         *server_config* is the full server section from the TOML
@@ -104,7 +104,7 @@ class SoftwareAdapter(Protocol):
         """
         ...
 
-    def generate_run_commands(self, path: Path, server_config: dict) -> str:
+    def generate_run_commands(self, path: Path, server_config: dict[str, Any]) -> str:
         """Return the bash body that executes the computation.
 
         *server_config* is the full server section from the TOML

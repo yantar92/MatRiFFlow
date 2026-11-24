@@ -1478,7 +1478,7 @@ def _append_valid(
                 center=site.coords,  # Cartesian
                 r=5, zip_results=False
             ))
-        neighbor_indices = cast(np.typing.NDArray, neighbor_indices)
+        assert isinstance(neighbor_indices, np.ndarray)
         close_idx = neighbor_indices[0]
         if structure[close_idx] == site:
             close_idx = neighbor_indices[1]

@@ -31,7 +31,7 @@ import logging
 import warnings
 from collections.abc import Callable, Sequence
 from multiprocessing import Pool
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from alive_progress import alive_bar
 import numpy as np
 import networkx as nx
@@ -56,7 +56,14 @@ class get_neb_pairs_warning(UserWarning):
     """Warning emitted during NEB pair generation."""
 
 
-class NEB_Graph(MultiDiGraph):
+# NetworkX exposes generic graph types only in its type stubs.
+if TYPE_CHECKING:
+    _NEBGraphBase = MultiDiGraph[int]
+else:
+    _NEBGraphBase = MultiDiGraph
+
+
+class NEB_Graph(_NEBGraphBase):
     """Graph representing diffusion paths between structures.
 
     Nodes are structure indices.  Edges are diffusion paths with

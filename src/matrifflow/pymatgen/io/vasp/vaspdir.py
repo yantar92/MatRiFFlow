@@ -109,7 +109,7 @@ _MISSING = object()
 
 # Rewriting the original VaspDir/PMGDir class to add caching, dumping,
 # and other goodies.
-class MRFVaspDir(Mapping, MSONable):
+class MRFVaspDir(Mapping[str, Any], MSONable):
     """Dictionary-like access to all files in a VASP calculation directory.
 
     Files are lazily parsed to minimise initialisation cost.  Example::
@@ -528,7 +528,7 @@ class MRFVaspDir(Mapping, MSONable):
         self._prev_vaspdirs: list['MRFVaspDir'] | None = None  # reset() redoes it.
         self._neb_vaspdirs: list['MRFVaspDir'] | None = None  # reset() redoes it.
         self._hash: str | None = None  # reset() redoes it.
-        self._summary: dict[str, Any] | None = None  # reset() redoes it.
+        self._summary: dict[str | tuple[Any, ...], Any] | None = None  # reset() redoes it.
         self._index_valid: bool = False  # reset() redoes it.
         if exclude_patterns is None:
             self._exclude_patterns = self.EXCLUDE_PATTERNS
@@ -566,7 +566,7 @@ class MRFVaspDir(Mapping, MSONable):
         """Cache key for a single parsed file within this directory."""
         return f"{self._cache_key}:file:{item}"
 
-    def _load_from_cache(self) -> dict | None:
+    def _load_from_cache(self) -> dict[str, object] | None:
         """Load the per-directory validity metadata from LMDB.
 
         Returns:
@@ -664,7 +664,7 @@ class MRFVaspDir(Mapping, MSONable):
         with self._pending_lock:
             pending = self._pending_writes.get(key)
         if pending is not None:
-            pending = cast(dict, pending)
+            assert isinstance(pending, dict)
             if (pending.get('version') == self.CACHE_VERSION
                     and pending.get('hash') == current_hash):
                 self._parsed_files = {}
@@ -715,14 +715,14 @@ class MRFVaspDir(Mapping, MSONable):
         self._index_valid = False
         logger.debug("No valid cache for %s", os.path.relpath(self.path))
 
-    def _fresh_summary(self) -> dict:
+    def _fresh_summary(self) -> dict[str | tuple[Any, ...], Any]:
         """Return an empty summary (memo) dict."""
         return {
             'warnings': VaspWarnings(),
             'warnings_collected': False,
         }
 
-    def _ensure_summary_loaded(self) -> dict:
+    def _ensure_summary_loaded(self) -> dict[str | tuple[Any, ...], Any]:
         """Load the summary (memo) from cache, or reset it to empty.
 
         Triggers :meth:`refresh` first so the validity of the cached

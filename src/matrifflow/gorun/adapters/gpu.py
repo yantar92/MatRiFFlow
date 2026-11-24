@@ -113,7 +113,7 @@ class GpuAdapter:
         """No default checks.  Override in derived classes."""
         pass
 
-    def setup_commands(self, server_config: dict) -> str:
+    def setup_commands(self, server_config: dict[str, Any]) -> str:
         """Read GPU environment setup from the server config.
 
         Looks for ``server_config[self.name]["setup"]`` — a raw shell
@@ -170,7 +170,7 @@ class GpuAdapter:
     # Script generation
     # ------------------------------------------------------------------
 
-    def generate_run_commands(self, path: Path, server_config: dict | None = None) -> str:
+    def generate_run_commands(self, path: Path, server_config: dict[str, Any] | None = None) -> str:
         """Return the RUNFILE command, or raise if none is found.
 
         When ``_script_name`` is set on the instance, that file is used

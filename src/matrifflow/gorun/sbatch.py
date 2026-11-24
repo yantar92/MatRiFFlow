@@ -32,6 +32,7 @@ import os
 import subprocess
 import tomllib
 from importlib import resources
+from typing import Any
 
 from pytimeparse.timeparse import timeparse as _timeparse
 from pymatgen.io.vasp.inputs import Incar
@@ -129,7 +130,7 @@ def _resolve_config_path(args: argparse.Namespace) -> str | None:
     return None
 
 
-def load_config(args: argparse.Namespace) -> dict | None:
+def load_config(args: argparse.Namespace) -> dict[str, Any] | None:
     """Read the gorun config file, or None when none is found.
 
     An explicit ``--config`` that is missing raises
@@ -143,7 +144,7 @@ def load_config(args: argparse.Namespace) -> dict | None:
         return tomllib.load(f)
 
 
-def resolve_server(config: dict) -> str | None:
+def resolve_server(config: dict[str, Any]) -> str | None:
     """Return the current server name, or None when it cannot be resolved.
 
     None when *config* has no ``[cluster.names]`` table, when the current
@@ -159,7 +160,7 @@ def resolve_server(config: dict) -> str | None:
     return None
 
 
-def current_server(config: dict) -> str:
+def current_server(config: dict[str, Any]) -> str:
     """Get current server name, as named in the CONFIG.
     """
     if "CLUSTER_NAME" in os.environ:
@@ -222,9 +223,9 @@ def get_default_job_name():
         return {'job-name': os.path.basename(os.getcwd())}
 
 
-def get_sbatch_args(script_args: argparse.Namespace, config: dict,
+def get_sbatch_args(script_args: argparse.Namespace, config: dict[str, Any],
                     server: str, queue: str,
-                    adapter_name: str | None = None) -> dict:
+                    adapter_name: str | None = None) -> dict[str, Any]:
     """Return a dict of arguments for sbatch command.
     Combine SCRIPT_ARGS with script CONFIG for QUEUE in SERVER.
 

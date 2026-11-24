@@ -246,7 +246,7 @@ class VaspAdapter:
     # Script generation
     # ------------------------------------------------------------------
 
-    def setup_commands(self, server_config: dict) -> str:
+    def setup_commands(self, server_config: dict[str, Any]) -> str:
         """Extract VASP module setup from config.
 
         Looks for ``server_config["vasp"]["setup"]`` first,
@@ -261,12 +261,12 @@ class VaspAdapter:
         # Legacy flat config
         return server_config.get("VASP-setup", "")
 
-    def generate_run_commands(self, path: Path, server_config: dict) -> str:
+    def generate_run_commands(self, path: Path, server_config: dict[str, Any]) -> str:
         if not self.no_incar_py and (path / "INCAR.py").is_file():
             return self._incar_py_script(path)
         return self._direct_vasp_script(server_config)
 
-    def _direct_vasp_script(self, server_config: dict) -> str:
+    def _direct_vasp_script(self, server_config: dict[str, Any]) -> str:
         """``<launcher> vasp_<variant>`` invocation.
 
         The launcher comes from ``server_config["mpiexec"]`` when set;
@@ -284,7 +284,7 @@ class VaspAdapter:
             "$VASP_COMMAND"
         )
 
-    def _mpiexec_command(self, server_config: dict) -> str:
+    def _mpiexec_command(self, server_config: dict[str, Any]) -> str:
         """Return the MPI launcher prefix.
 
         An explicit ``mpiexec`` key in the config is used verbatim, even

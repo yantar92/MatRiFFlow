@@ -267,19 +267,18 @@ class InsertMoleculeTransformation(AbstractTransformation):
         atom = structure[site_index]
         # Finding neighbors is extremely fast, faster than direct
         # distance calculation.
-        # get_points_in_sphere returns a 4-tuple when zip_results=False,
-        # but pymatgen's return annotation is a union that includes a
-        # 1-element tuple.  Cast to the real shape.
-        # FIXME: report the annotation bug upstream to pymatgen.
-        _, distances, neighbor_indices, _ = cast(
-            tuple[np.typing.NDArray, np.typing.NDArray,
-                  np.typing.NDArray, np.typing.NDArray],
-            structure.lattice.get_points_in_sphere(
-                frac_points=structure.frac_coords,
-                center=atom.coords,  # Cartesian
-                r=cutoff + cast(FloatWithUnit, atom.specie.atomic_radius),
-                zip_results=False),
-        )
+        # get_points_in_sphere returns four arrays when zip_results=False.
+        # FIXME: report the incorrect tuple annotation upstream to pymatgen.
+        neighbors = structure.lattice.get_points_in_sphere(
+            frac_points=structure.frac_coords,
+            center=atom.coords,  # Cartesian
+            r=cutoff + cast(FloatWithUnit, atom.specie.atomic_radius),
+            zip_results=False)
+        assert isinstance(neighbors, tuple) and len(neighbors) == 4
+        distances = neighbors[1]
+        neighbor_indices = neighbors[2]
+        assert isinstance(distances, np.ndarray)
+        assert isinstance(neighbor_indices, np.ndarray)
         for nidx, distance in zip(neighbor_indices, distances):
             # Skip the site itself.  Compare indices rather than value
             # equality: two distinct atoms may share coordinates and

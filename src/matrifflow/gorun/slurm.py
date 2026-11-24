@@ -177,7 +177,7 @@ def sbatch_estimate_start(script: str):
 
 
 def get_best_script(
-        alt_args: list[dict],
+        alt_args: list[dict[str, str]],
         script: str,
         shebang: str = "#!/usr/bin/env bash",
 ) -> str:
